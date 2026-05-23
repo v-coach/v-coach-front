@@ -12,7 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,12 +45,6 @@ private fun IngredientAnalysisContent() {
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
         ResultSummaryCard()
-
-        EmptyInfoCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(230.dp),
-        )
     }
 }
 
@@ -62,11 +57,7 @@ private fun SetContent() {
             .padding(horizontal = 28.dp, vertical = 30.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        EmptyInfoCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(230.dp),
-        )
+
     }
 }
 
@@ -79,37 +70,38 @@ private fun NutritionAnalysisContent() {
             .padding(horizontal = 28.dp, vertical = 30.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        EmptyInfoCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(230.dp),
-        )
+
     }
 }
 
 @Composable
 private fun ResultSummaryCard() {
-    val dectetedIngredientItems = mutableListOf<String>()
-    val detectedIngredientName = "${dectetedIngredientItems}"
+    val detectedIngredientItems = mutableListOf<String>()
+    val detectedIngredientName = detectedIngredientItems.joinToString(", ")
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(178.dp),
+    Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(2.dp, Color(0xFFD0D0D0)),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White,
+        ),
+        border = BorderStroke(
+            width = 2.dp,
+            color = Color(0xFFD0D0D0),
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp,
+        ),
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 28.dp, vertical = 26.dp),
-            verticalArrangement = Arrangement.Center,
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp, vertical = 22.dp),
         ) {
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFF2FA36B)),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -133,9 +125,7 @@ private fun ResultSummaryCard() {
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            if(
-                detectedIngredientName.isNotBlank()
-            ) {
+            if (detectedIngredientItems.isNotEmpty()) {
                 Text(
                     text = "식품에 ${detectedIngredientName}가 보여요",
                     fontSize = 26.sp,
@@ -149,29 +139,17 @@ private fun ResultSummaryCard() {
                 Text(
                     text = "식단 제한이 있다면 재료를 확인해주세요",
                     fontSize = 14.sp,
-                    color = Color(0xFF666666),
+                    color = Color.Gray,
                 )
-            }
-            else {
+            } else {
                 Text(
                     text = "식품에 보이는 피해야 하는 재료가 없어요",
-                    fontSize = 26.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = Color.Gray,
                 )
             }
         }
     }
 }
 
-@Composable
-private fun EmptyInfoCard(
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(2.dp, Color(0xFFD0D0D0)),
-    ) {}
-}
