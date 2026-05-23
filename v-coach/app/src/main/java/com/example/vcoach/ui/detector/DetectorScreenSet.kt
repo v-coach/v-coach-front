@@ -29,7 +29,7 @@ fun DetectorScreenSet (
     ) {
     when (selectedTab) {
         0 -> IngredientAnalysisContent()
-        1 -> AvoidIngredientContent()
+        1 -> SetContent()
         2 -> NutritionAnalysisContent()
     }
 }
@@ -54,7 +54,7 @@ private fun IngredientAnalysisContent() {
 }
 
 @Composable
-private fun AvoidIngredientContent() {
+private fun SetContent() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -89,7 +89,8 @@ private fun NutritionAnalysisContent() {
 
 @Composable
 private fun ResultSummaryCard() {
-    val detectedIngredientName = ""
+    val dectetedIngredientItems = mutableListOf<String>()
+    val detectedIngredientName = "${dectetedIngredientItems}"
 
     Surface(
         modifier = Modifier
@@ -132,21 +133,33 @@ private fun ResultSummaryCard() {
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            Text(
-                text = "식품에 ${detectedIngredientName}가 보여요",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                lineHeight = 32.sp,
-            )
+            if(
+                detectedIngredientName.isNotBlank()
+            ) {
+                Text(
+                    text = "식품에 ${detectedIngredientName}가 보여요",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    lineHeight = 32.sp,
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = "식단 제한이 있다면 재료를 확인해주세요",
-                fontSize = 14.sp,
-                color = Color(0xFF666666),
-            )
+                Text(
+                    text = "식단 제한이 있다면 재료를 확인해주세요",
+                    fontSize = 14.sp,
+                    color = Color(0xFF666666),
+                )
+            }
+            else {
+                Text(
+                    text = "식품에 보이는 피해야 하는 재료가 없어요",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                )
+            }
         }
     }
 }
