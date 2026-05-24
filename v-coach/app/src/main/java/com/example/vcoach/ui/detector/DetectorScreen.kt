@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -17,12 +18,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun DetectorScreen(
     onBackClick: () -> Unit = {},
+    viewModel: DetectorViewModel = viewModel(),
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -45,7 +49,7 @@ fun DetectorScreen(
             PhotoSet(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(340.dp),
+                    .height(310.dp),
             )
 
             Box(
@@ -53,7 +57,10 @@ fun DetectorScreen(
                     .fillMaxWidth()
                     .weight(1f),
             ) {
-                DetectorScreenSet(selectedTab = selectedTab)
+                DetectorScreenSet(
+                    selectedTab = selectedTab,
+                    uiState = uiState,
+                )
             }
         }
     }
