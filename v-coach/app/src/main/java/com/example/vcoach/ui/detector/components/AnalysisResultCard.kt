@@ -64,12 +64,6 @@ fun AnalysisResultCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "AI",
-                        fontSize = 10.sp,
-                        color = textColor,
-                    )
-
-                    Text(
                         text = text,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
