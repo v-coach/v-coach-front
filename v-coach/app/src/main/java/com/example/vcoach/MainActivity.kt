@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.vcoach.ui.detector.DetectorScreen
 import com.example.vcoach.ui.home.HomeScreen
+import com.example.vcoach.ui.navigation.VCoachScreen
 import com.example.vcoach.ui.selectitem.SelectItemScreen
 import com.example.vcoach.ui.settings.SettingsScreen
 import com.example.vcoach.ui.theme.VCoachTheme
@@ -19,25 +20,27 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VCoachTheme {
-                var currentScreen by remember { mutableStateOf("home") }
+                var currentScreen: VCoachScreen by remember {
+                    mutableStateOf(VCoachScreen.Home)
+                }
 
                 when (currentScreen) {
-                    "home" -> HomeScreen(
-                        onAnalyzeClick = { currentScreen = "select_item" },
-                        onSettingClick = { currentScreen = "settings" },
+                    VCoachScreen.Home -> HomeScreen(
+                        onAnalyzeClick = { currentScreen = VCoachScreen.SelectItem },
+                        onSettingClick = { currentScreen = VCoachScreen.Settings },
                     )
 
-                    "select_item" -> SelectItemScreen(
-                        onBackClick = { currentScreen = "home" },
-                        onAddPhotoClick = { currentScreen = "detector" },
+                    VCoachScreen.SelectItem -> SelectItemScreen(
+                        onBackClick = { currentScreen = VCoachScreen.Home },
+                        onAddPhotoClick = { currentScreen = VCoachScreen.Detector },
                     )
 
-                    "detector" -> DetectorScreen(
-                        onBackClick = { currentScreen = "select_item" },
+                    VCoachScreen.Detector -> DetectorScreen(
+                        onBackClick = { currentScreen = VCoachScreen.SelectItem },
                     )
 
-                    "settings" -> SettingsScreen(
-                        onBackClick = { currentScreen = "home" },
+                    VCoachScreen.Settings -> SettingsScreen(
+                        onBackClick = { currentScreen = VCoachScreen.Home },
                     )
                 }
             }

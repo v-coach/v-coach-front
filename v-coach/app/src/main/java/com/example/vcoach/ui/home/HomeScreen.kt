@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vcoach.ui.components.VCoachPrimaryButton
+import com.example.vcoach.ui.theme.VCoachGreen
+import com.example.vcoach.ui.theme.VCoachTextGray
 
 @Composable
 fun HomeScreen(
@@ -42,30 +43,19 @@ fun HomeScreen(
         )
 
         Text(
-            text = "음식을 분석하고 나에게 맞는 식단 관리를 해보세요",
+            text = "식품을 분석하고 나에게 맞는 식단 관리를 해보세요",
             modifier = Modifier.padding(top = 16.dp),
             fontSize = 16.sp,
-            color = Color(0xFF777777),
+            color = VCoachTextGray,
         )
 
         Spacer(modifier = Modifier.height(56.dp))
 
-        ElevatedButton(
+        VCoachPrimaryButton(
+            text = "식품 분석하기",
             onClick = onAnalyzeClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF147A4B),
-                contentColor = Color.White,
-            ),
-        ) {
-            Text(
-                text = "식품 분석하기",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         Spacer(modifier = Modifier.height(23.dp))
 
@@ -75,7 +65,7 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .height(58.dp),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = Color(0xFF147A4B),
+                contentColor = VCoachGreen,
             ),
         ) {
             Text(

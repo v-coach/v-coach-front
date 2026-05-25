@@ -1,4 +1,4 @@
-package com.example.vcoach.ui.detector
+package com.example.vcoach.ui.detector.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun PhotoSet(
+fun PhotoPreview(
     modifier: Modifier = Modifier,
 ) {
     Box(

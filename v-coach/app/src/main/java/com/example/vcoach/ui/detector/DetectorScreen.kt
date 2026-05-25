@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -19,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.vcoach.ui.components.VCoachTopBar
+import com.example.vcoach.ui.detector.components.DetectorTabBar
+import com.example.vcoach.ui.detector.components.PhotoPreview
 
 @Composable
 fun DetectorScreen(
@@ -30,10 +32,10 @@ fun DetectorScreen(
 
     Scaffold(
         topBar = {
-            DetectorTopBar(onBackClick = onBackClick)
+            VCoachTopBar(onBackClick = onBackClick)
         },
         bottomBar = {
-            DetectorTabRow(
+            DetectorTabBar(
                 selectedTab = selectedTab,
                 onTabSelected = { selectedTab = it },
             )
@@ -46,7 +48,7 @@ fun DetectorScreen(
                 .padding(innerPadding)
                 .background(Color.White),
         ) {
-            PhotoSet(
+            PhotoPreview(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(310.dp),

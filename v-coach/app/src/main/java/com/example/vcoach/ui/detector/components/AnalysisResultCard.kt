@@ -1,4 +1,4 @@
-package com.example.vcoach.ui.detector
+package com.example.vcoach.ui.detector.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -20,9 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vcoach.ui.theme.VCoachBorderGray
 
 @Composable
-fun SetDataContainer(
+fun AnalysisResultCard(
     text: String,
     textColor: Color,
     content: @Composable () -> Unit,
@@ -35,7 +36,7 @@ fun SetDataContainer(
         ),
         border = BorderStroke(
             width = 2.dp,
-            color = Color(0xFFD0D0D0),
+            color = VCoachBorderGray,
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 4.dp,
@@ -63,7 +64,7 @@ fun SetDataContainer(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "●",
+                        text = "AI",
                         fontSize = 10.sp,
                         color = textColor,
                     )

@@ -1,4 +1,4 @@
-package com.example.vcoach.ui.settings
+package com.example.vcoach.ui.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,20 +18,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vcoach.ui.theme.VCoachDisabledGray
+import com.example.vcoach.ui.theme.VCoachGreen
+import com.example.vcoach.ui.theme.VCoachOptionBorderGray
 
 @Composable
-fun SettingOptionCard(
+fun VCoachOptionCard(
     title: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(86.dp)
             .border(
                 width = 1.5.dp,
-                color = if (selected) Color(0xFF147A4B) else Color(0xFFD8D8D8),
+                color = if (selected) VCoachGreen else VCoachOptionBorderGray,
                 shape = RoundedCornerShape(14.dp),
             )
             .clip(RoundedCornerShape(14.dp))
@@ -43,8 +47,8 @@ fun SettingOptionCard(
             selected = selected,
             onClick = onClick,
             colors = RadioButtonDefaults.colors(
-                selectedColor = Color(0xFF147A4B),
-                unselectedColor = Color(0xFFC8C8C8),
+                selectedColor = VCoachGreen,
+                unselectedColor = VCoachDisabledGray,
             ),
         )
 
