@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vcoach.data.remote.SetListData
 import com.example.vcoach.ui.theme.VCoachGreen
 
 @Composable
@@ -25,7 +26,7 @@ fun RestrictedIngredientContent(
     userType: String,
     hasRestrictedIngredient: Boolean,
     restrictedIngredientItems: List<String> = List(DEFAULT_PLACEHOLDER_ITEM_COUNT) { "" },
-    alternativeFoodItems: List<String> = List(DEFAULT_PLACEHOLDER_ITEM_COUNT) { "" },
+    setListItems: List<SetListData> = emptyList(),
 ) {
     Column(
         modifier = Modifier
@@ -49,21 +50,9 @@ fun RestrictedIngredientContent(
                 color = Color.Gray,
             )
 
-            if (hasRestrictedIngredient) {
-                Spacer(modifier = Modifier.height(22.dp))
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    restrictedIngredientItems.forEach {
-                        PlaceholderListItem()
-                    }
-                }
-            }
         }
 
-        if (hasRestrictedIngredient) {
+        if (hasRestrictedIngredient || setListItems.isNotEmpty()) {
             AnalysisResultCard(
                 text = "대체 식품 추천",
                 textColor = VCoachGreen,
@@ -85,8 +74,31 @@ fun RestrictedIngredientContent(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        alternativeFoodItems.forEach {
-                            PlaceholderListItem()
+                        if (setListItems.isEmpty()) {
+                            Text(
+                                text = "응답을 기다리는 중입니다.",
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                            )
+                        } else {
+                            setListItems.forEach { item ->
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(
+                                        text = item.name,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black,
+                                    )
+
+                                    Text(
+                                        text = item.content,
+                                        fontSize = 14.sp,
+                                        color = Color.Gray,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
