@@ -12,5 +12,6 @@ data class FoodEntity(
     val includedIngredients: List<String>,
     val emissionAmount: Int,
     val alternativeFoods: List<String>,
+    val alternativeFoodDescriptions: List<String>,
     val data: List<String>,
 )

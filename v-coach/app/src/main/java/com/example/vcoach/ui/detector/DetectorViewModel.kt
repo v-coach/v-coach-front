@@ -3,10 +3,13 @@ package com.example.vcoach.ui.detector
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vcoach.ai.TfliteFoodDetector
+import com.example.vcoach.data.local.AppDatabase
+import com.example.vcoach.data.local.FoodEntity
 import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.data.remote.IngredientRequest
 import com.example.vcoach.data.remote.RetrofitClient
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.io.File
 
 class DetectorViewModel(
     application: Application,
@@ -29,11 +33,19 @@ class DetectorViewModel(
     private val _selectedPhoto = MutableStateFlow<SelectedPhoto?>(null)
     val selectedPhoto: StateFlow<SelectedPhoto?> = _selectedPhoto.asStateFlow()
 
+    private val _canDeleteCurrentFood = MutableStateFlow(false)
+    val canDeleteCurrentFood: StateFlow<Boolean> = _canDeleteCurrentFood.asStateFlow()
+
+    private var currentFoodId: Int? = null
+
     private val foodDetector = TfliteFoodDetector(application)
+    private val foodDao = AppDatabase.getInstance(application).foodDao()
     private val userPreferences = UserPreferences(application)
     private val getRestrictedIngredientsUseCase = GetRestrictedIngredientsUseCase()
 
     fun setSelectedPhoto(photo: SelectedPhoto) {
+        currentFoodId = null
+        _canDeleteCurrentFood.value = false
         _selectedPhoto.value = photo
         analyzePhoto(photo)
     }
@@ -43,6 +55,61 @@ class DetectorViewModel(
             detectedIngredients = ingredients,
             isAdditionalAnalysisComplete = true,
         )
+    }
+
+    fun loadSavedFood(foodId: Int) {
+        viewModelScope.launch {
+            _uiState.value = DetectorUiState.Loading()
+
+            runCatching {
+                val food = withContext(Dispatchers.IO) {
+                    foodDao.getFoodById(foodId)
+                } ?: error("Saved food could not be loaded.")
+
+                currentFoodId = food.id
+                _canDeleteCurrentFood.value = true
+                _selectedPhoto.value = SelectedPhoto(
+                    uri = Uri.fromFile(File(food.imagePath)),
+                    imagePath = food.imagePath,
+                )
+                _uiState.value = DetectorUiState.Success(
+                    detectedIngredients = food.includedIngredients,
+                    setListItems = food.alternativeFoods.mapIndexed { index, foodName ->
+                        SetListData(
+                            name = foodName,
+                            content = food.alternativeFoodDescriptions.getOrElse(index) { "" },
+                        )
+                    },
+                    isAdditionalAnalysisComplete = true,
+                )
+            }.onFailure { throwable ->
+                Log.e(TAG, "Failed to load saved food: id=$foodId", throwable)
+                setError(throwable.message ?: "Failed to load saved food")
+            }
+        }
+    }
+
+    fun deleteCurrentFood(onDeleted: () -> Unit = {}) {
+        val foodId = currentFoodId ?: return
+
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    foodDao.getFoodById(foodId)?.let { food ->
+                        foodDao.deleteFood(food)
+                    }
+                }
+            }.onSuccess {
+                currentFoodId = null
+                _canDeleteCurrentFood.value = false
+                _selectedPhoto.value = null
+                _uiState.value = DetectorUiState.Idle
+                onDeleted()
+            }.onFailure { throwable ->
+                Log.e(TAG, "Failed to delete food: id=$foodId", throwable)
+                setError(throwable.message ?: "Failed to delete food")
+            }
+        }
     }
 
     private suspend fun getAlternativeFoods(ingredients: List<String>): List<SetListData> {
@@ -98,6 +165,7 @@ class DetectorViewModel(
             runCatching {
                 val bitmap = photo.toBitmap()
                     ?: error("Selected photo could not be loaded.")
+                val foodName = detectFoodName(bitmap)
                 val detectedIngredients = foodDetector.detect(bitmap).map { result ->
                     result.ingredientName
                 }
@@ -106,7 +174,15 @@ class DetectorViewModel(
                     detectedIngredients = detectedIngredients,
                     isAdditionalAnalysisComplete = true,
                 )
-                fetchAlternativeFoodsInBackground(detectedIngredients)
+                val savedFoodId = saveFoodAnalysis(
+                    photo = photo,
+                    foodName = foodName,
+                    detectedIngredients = detectedIngredients,
+                )
+                fetchAlternativeFoodsAndUpdateInBackground(
+                    savedFoodId = savedFoodId,
+                    detectedIngredients = detectedIngredients,
+                )
             }.onFailure { throwable ->
                 Log.e(TAG, "Failed to analyze selected photo", throwable)
                 setError(throwable.message ?: "Failed to analyze selected photo")
@@ -114,17 +190,75 @@ class DetectorViewModel(
         }
     }
 
-    private fun fetchAlternativeFoodsInBackground(detectedIngredients: List<String>) {
+    private fun fetchAlternativeFoodsAndUpdateInBackground(
+        savedFoodId: Int?,
+        detectedIngredients: List<String>,
+    ) {
         viewModelScope.launch {
             val setListItems = getAlternativeFoodsForRestrictedIngredients(detectedIngredients)
-            if (setListItems.isEmpty()) return@launch
-
             val currentState = _uiState.value as? DetectorUiState.Success ?: return@launch
             if (currentState.detectedIngredients != detectedIngredients) return@launch
 
-            _uiState.value = currentState.copy(
-                setListItems = setListItems,
+            if (setListItems.isNotEmpty()) {
+                _uiState.value = currentState.copy(
+                    setListItems = setListItems,
+                )
+            }
+
+            if (savedFoodId != null && setListItems.isNotEmpty()) {
+                updateAlternativeFoods(
+                    savedFoodId = savedFoodId,
+                    setListItems = setListItems,
+                )
+            }
+        }
+    }
+
+    private suspend fun saveFoodAnalysis(
+        photo: SelectedPhoto,
+        foodName: String,
+        detectedIngredients: List<String>,
+    ): Int? {
+        val imagePath = photo.imagePath ?: return null
+
+        return withContext(Dispatchers.IO) {
+            val savedFoodId = foodDao.insertFood(
+                FoodEntity(
+                    foodName = foodName,
+                    imagePath = imagePath,
+                    includedIngredients = detectedIngredients,
+                    emissionAmount = 0,
+                    alternativeFoods = emptyList(),
+                    alternativeFoodDescriptions = emptyList(),
+                    data = emptyList(),
+                ),
+            ).toInt()
+            currentFoodId = savedFoodId
+            _canDeleteCurrentFood.value = true
+            savedFoodId
+        }
+    }
+
+    private suspend fun updateAlternativeFoods(
+        savedFoodId: Int,
+        setListItems: List<SetListData>,
+    ) {
+        withContext(Dispatchers.IO) {
+            val savedFood = foodDao.getFoodById(savedFoodId) ?: return@withContext
+            foodDao.updateFood(
+                savedFood.copy(
+                    alternativeFoods = setListItems.map { item -> item.name },
+                    alternativeFoodDescriptions = setListItems.map { item -> item.content },
+                ),
             )
+        }
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    private suspend fun detectFoodName(bitmap: Bitmap): String {
+        return withContext(Dispatchers.Default) {
+            // Food-101 model integration point.
+            DEFAULT_FOOD_NAME
         }
     }
 
@@ -138,5 +272,6 @@ class DetectorViewModel(
 
     private companion object {
         const val TAG = "DetectorViewModel"
+        const val DEFAULT_FOOD_NAME = "식품"
     }
 }

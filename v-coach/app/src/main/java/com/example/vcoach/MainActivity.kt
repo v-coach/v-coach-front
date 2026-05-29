@@ -60,10 +60,15 @@ class MainActivity : ComponentActivity() {
                             detectorViewModel.setSelectedPhoto(photo)
                             currentScreen = VCoachScreen.Detector
                         },
+                        onFoodItemClick = { foodId ->
+                            detectorViewModel.loadSavedFood(foodId)
+                            currentScreen = VCoachScreen.Detector
+                        },
                     )
 
                     VCoachScreen.Detector -> DetectorScreen(
                         onBackClick = { currentScreen = VCoachScreen.SelectItem },
+                        onDeleted = { currentScreen = VCoachScreen.SelectItem },
                         viewModel = detectorViewModel,
                     )
 

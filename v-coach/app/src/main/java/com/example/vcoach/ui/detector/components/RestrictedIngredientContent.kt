@@ -135,10 +135,12 @@ private fun AlternativeFoodItem(
             color = Color.Black,
         )
 
-        Text(
-            text = item.content,
-            fontSize = 14.sp,
-            color = VCoachTextGray,
-        )
+        if (item.content.isNotBlank()) {
+            Text(
+                text = item.content,
+                fontSize = 14.sp,
+                color = VCoachTextGray,
+            )
+        }
     }
 }

@@ -50,6 +50,7 @@ import java.io.File
 fun SelectItemScreen(
     onBackClick: () -> Unit = {},
     onPhotoAdded: (SelectedPhoto) -> Unit = {},
+    onFoodItemClick: (Int) -> Unit = {},
     viewModel: SelectItemViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -124,6 +125,7 @@ fun SelectItemScreen(
                         FoodItemCard(
                             foodName = foodItem.foodName,
                             imagePath = foodItem.imagePath,
+                            onClick = { onFoodItemClick(foodItem.id) },
                         )
                     }
                 }
@@ -131,7 +133,7 @@ fun SelectItemScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 VCoachPrimaryButton(
-                    text = "?ъ쭊 異붽??섍린",
+                    text = "사진 추가하기",
                     onClick = onAddPhotoClick,
                     modifier = Modifier.fillMaxWidth(),
                 )
