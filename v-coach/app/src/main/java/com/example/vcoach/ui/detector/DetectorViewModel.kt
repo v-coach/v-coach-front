@@ -1,25 +1,36 @@
 package com.example.vcoach.ui.detector
 
+import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vcoach.ai.TfliteFoodDetector
 import com.example.vcoach.data.remote.IngredientRequest
 import com.example.vcoach.data.remote.RetrofitClient
 import com.example.vcoach.ui.photo.SelectedPhoto
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
-class DetectorViewModel : ViewModel() {
+class DetectorViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<DetectorUiState>(DetectorUiState.Idle)
     val uiState: StateFlow<DetectorUiState> = _uiState.asStateFlow()
 
     private val _selectedPhoto = MutableStateFlow<SelectedPhoto?>(null)
     val selectedPhoto: StateFlow<SelectedPhoto?> = _selectedPhoto.asStateFlow()
 
+    private val foodDetector = TfliteFoodDetector(application)
+
     fun setSelectedPhoto(photo: SelectedPhoto) {
         _selectedPhoto.value = photo
+        analyzePhoto(photo)
     }
 
     fun setDetectedIngredients(ingredients: List<String>) {
@@ -28,20 +39,24 @@ class DetectorViewModel : ViewModel() {
         )
     }
 
-    fun getAlternativeFoods(ingredient: String) {
+    fun getAlternativeFoods(ingredients: List<String>) {
+        val requestIngredients = ingredients.distinct()
+        if (requestIngredients.isEmpty()) return
+        val requestIngredientText = requestIngredients.joinToString(", ")
+
         viewModelScope.launch {
-            Log.d(TAG, "Request alternative foods: ingredient=$ingredient")
+            Log.d(TAG, "Request alternative foods: ingredient=$requestIngredientText")
 
             runCatching {
                 RetrofitClient.foodApiService.getAlternativeFoods(
-                    IngredientRequest(ingredient),
+                    IngredientRequest(requestIngredientText),
                 )
             }.onSuccess { setListItems ->
                 Log.d(TAG, "Alternative foods response size=${setListItems.size}, items=$setListItems")
 
                 val detectedIngredients = when (val currentState = _uiState.value) {
                     is DetectorUiState.Success -> currentState.detectedIngredients
-                    else -> listOf(ingredient)
+                    else -> requestIngredients
                 }
 
                 if (setListItems.isEmpty()) {
@@ -53,8 +68,10 @@ class DetectorViewModel : ViewModel() {
                     setListItems = setListItems,
                 )
             }.onFailure { throwable ->
-                Log.e(TAG, "Failed to get alternative foods", throwable)
-                setError(throwable.message ?: "Failed to get alternative foods")
+                Log.e(TAG, "Failed to get alternative foods: ingredient=$requestIngredientText", throwable)
+                if (_uiState.value !is DetectorUiState.Success) {
+                    setError(throwable.message ?: "Failed to get alternative foods")
+                }
             }
         }
     }
@@ -65,6 +82,39 @@ class DetectorViewModel : ViewModel() {
 
     fun setError(message: String) {
         _uiState.value = DetectorUiState.Error(message)
+    }
+
+    override fun onCleared() {
+        foodDetector.close()
+        super.onCleared()
+    }
+
+    private fun analyzePhoto(photo: SelectedPhoto) {
+        viewModelScope.launch {
+            _uiState.value = DetectorUiState.Loading
+
+            runCatching {
+                val bitmap = photo.toBitmap()
+                    ?: error("Selected photo could not be loaded.")
+                foodDetector.detect(bitmap)
+            }.onSuccess { results ->
+                val detectedIngredients = results.map { it.ingredientName }
+                _uiState.value = DetectorUiState.Success(
+                    detectedIngredients = detectedIngredients,
+                )
+            }.onFailure { throwable ->
+                Log.e(TAG, "Failed to analyze selected photo", throwable)
+                setError(throwable.message ?: "Failed to analyze selected photo")
+            }
+        }
+    }
+
+    private suspend fun SelectedPhoto.toBitmap(): Bitmap? = withContext(Dispatchers.IO) {
+        bitmap ?: uri?.let { selectedUri ->
+            getApplication<Application>().contentResolver
+                .openInputStream(selectedUri)
+                ?.use(BitmapFactory::decodeStream)
+        }
     }
 
     private companion object {

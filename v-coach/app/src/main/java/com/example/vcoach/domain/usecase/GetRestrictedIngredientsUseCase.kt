@@ -8,11 +8,11 @@ class GetRestrictedIngredientsUseCase {
 
 object RestrictedIngredientSet {
     val ingredientOrder = listOf(
-        "유제품",
-        "계란",
-        "어패류",
-        "닭고기",
-        "육류",
+        "\uacc4\ub780",
+        "\uc720\uc81c\ud488",
+        "\ub2ed\uace0\uae30",
+        "\uc5b4\ud328\ub958",
+        "\uc721\ub958",
     )
 
     val userTypes = listOf("A", "B", "C", "D", "E")

@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.domain.usecase.CheckRestrictedIngredientUseCase
+import com.example.vcoach.domain.usecase.GetRestrictedIngredientsUseCase
 import com.example.vcoach.ui.detector.components.IngredientAnalysisContent
 import com.example.vcoach.ui.detector.components.NutritionAnalysisContent
 import com.example.vcoach.ui.detector.components.RestrictedIngredientContent
@@ -14,13 +15,12 @@ import com.example.vcoach.ui.detector.components.RestrictedIngredientContent
 fun DetectorScreenSet(
     selectedTab: Int,
     uiState: DetectorUiState,
-    onAlternativeFoodsRequest: (String) -> Unit,
+    onAlternativeFoodsRequest: (List<String>) -> Unit,
 ) {
     val detectedIngredientItems = when (uiState) {
         is DetectorUiState.Success -> uiState.detectedIngredients
         else -> emptyList()
     }
-    val requestIngredient = detectedIngredientItems.firstOrNull() ?: TEST_REQUEST_INGREDIENT
     val setListItems = when (uiState) {
         is DetectorUiState.Success -> uiState.setListItems
         else -> emptyList()
@@ -29,15 +29,27 @@ fun DetectorScreenSet(
     val userPreferences = UserPreferences(LocalContext.current)
     val userType = userPreferences.getUserType()
     val checkRestrictedIngredientUseCase = remember { CheckRestrictedIngredientUseCase() }
+    val getRestrictedIngredientsUseCase = remember { GetRestrictedIngredientsUseCase() }
+    val restrictedIngredients = remember(userType) {
+        getRestrictedIngredientsUseCase(userType)
+    }
+    val restrictedDetectedIngredientItems = remember(restrictedIngredients, detectedIngredientItems) {
+        detectedIngredientItems.filter { ingredient ->
+            ingredient in restrictedIngredients
+        }
+    }
     val hasRestrictedIngredient = remember(userType, detectedIngredientItems) {
         checkRestrictedIngredientUseCase(
             userType = userType,
             detectedIngredients = detectedIngredientItems,
-        ) || detectedIngredientItems.isEmpty()
+        )
     }
+    val requestIngredients = restrictedDetectedIngredientItems
 
-    LaunchedEffect(Unit) {
-        onAlternativeFoodsRequest(requestIngredient)
+    LaunchedEffect(requestIngredients) {
+        if (requestIngredients.isNotEmpty()) {
+            onAlternativeFoodsRequest(requestIngredients)
+        }
     }
 
     when (selectedTab) {
@@ -45,10 +57,9 @@ fun DetectorScreenSet(
         1 -> RestrictedIngredientContent(
             userType = userType,
             hasRestrictedIngredient = hasRestrictedIngredient,
+            restrictedIngredientItems = restrictedDetectedIngredientItems,
             setListItems = setListItems,
         )
         2 -> NutritionAnalysisContent()
     }
 }
-
-private const val TEST_REQUEST_INGREDIENT = "파스타"

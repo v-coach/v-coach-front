@@ -26,6 +26,10 @@ android {
         compose = true
     }
 
+    androidResources {
+        noCompress += "tflite"
+    }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
@@ -45,6 +49,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

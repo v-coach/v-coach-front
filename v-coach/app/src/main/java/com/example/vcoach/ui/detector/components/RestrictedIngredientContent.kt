@@ -20,12 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vcoach.data.remote.SetListData
 import com.example.vcoach.ui.theme.VCoachGreen
+import com.example.vcoach.ui.theme.VCoachTextGray
 
 @Composable
 fun RestrictedIngredientContent(
     userType: String,
     hasRestrictedIngredient: Boolean,
-    restrictedIngredientItems: List<String> = List(DEFAULT_PLACEHOLDER_ITEM_COUNT) { "" },
+    restrictedIngredientItems: List<String> = emptyList(),
     setListItems: List<SetListData> = emptyList(),
 ) {
     Column(
@@ -39,67 +40,88 @@ fun RestrictedIngredientContent(
             text = "제한 성분 분석 완료",
             textColor = VCoachGreen,
         ) {
-            Text(
-                text = if (hasRestrictedIngredient) {
-                    "해당 식품에는 ${userType} 유형이 제한해야 하는 성분이 있어요"
-                } else {
-                    "이 식품에는 제한해야 하는 성분이 없어요"
-                },
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Gray,
+            RestrictedIngredientSummary(
+                userType = userType,
+                hasRestrictedIngredient = hasRestrictedIngredient,
+                restrictedIngredientItems = restrictedIngredientItems,
             )
-
         }
 
-        if (hasRestrictedIngredient || setListItems.isNotEmpty()) {
-            AnalysisResultCard(
-                text = "대체 식품 추천",
-                textColor = VCoachGreen,
+        if (hasRestrictedIngredient) {
+            AlternativeFoodCard(setListItems = setListItems)
+        }
+    }
+}
+
+@Composable
+private fun RestrictedIngredientSummary(
+    userType: String,
+    hasRestrictedIngredient: Boolean,
+    restrictedIngredientItems: List<String>,
+) {
+    if (hasRestrictedIngredient) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "${userType} 유형이 제한해야 하는 재료가 있습니다",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                lineHeight = 28.sp,
+            )
+
+            Text(
+                text = restrictedIngredientItems.joinToString(", "),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = VCoachGreen,
+            )
+        }
+    } else {
+        Text(
+            text = "제한해야 하는 성분이 없어요",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = VCoachTextGray,
+        )
+    }
+}
+
+@Composable
+private fun AlternativeFoodCard(
+    setListItems: List<SetListData>,
+) {
+    AnalysisResultCard(
+        text = "대체 식품 추천",
+        textColor = VCoachGreen,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "대체식을 추천해드려요",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
+                if (setListItems.isEmpty()) {
                     Text(
-                        text = "대체식품을 추천해드려요",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black,
-                        textAlign = TextAlign.Center,
+                        text = "응답을 기다리는 중입니다.",
+                        fontSize = 14.sp,
+                        color = VCoachTextGray,
                     )
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        if (setListItems.isEmpty()) {
-                            Text(
-                                text = "응답을 기다리는 중입니다.",
-                                fontSize = 14.sp,
-                                color = Color.Gray,
-                            )
-                        } else {
-                            setListItems.forEach { item ->
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Text(
-                                        text = item.name,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.Black,
-                                    )
-
-                                    Text(
-                                        text = item.content,
-                                        fontSize = 14.sp,
-                                        color = Color.Gray,
-                                    )
-                                }
-                            }
-                        }
+                } else {
+                    setListItems.forEach { item ->
+                        AlternativeFoodItem(item = item)
                     }
                 }
             }
@@ -107,4 +129,24 @@ fun RestrictedIngredientContent(
     }
 }
 
-private const val DEFAULT_PLACEHOLDER_ITEM_COUNT = 2
+@Composable
+private fun AlternativeFoodItem(
+    item: SetListData,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = item.name,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+        )
+
+        Text(
+            text = item.content,
+            fontSize = 14.sp,
+            color = VCoachTextGray,
+        )
+    }
+}
