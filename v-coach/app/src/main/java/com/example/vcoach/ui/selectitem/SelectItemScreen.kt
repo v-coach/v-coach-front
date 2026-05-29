@@ -21,8 +21,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,18 +39,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vcoach.ui.components.VCoachPrimaryButton
 import com.example.vcoach.ui.components.VCoachTopBar
 import com.example.vcoach.ui.photo.SelectedPhoto
+import com.example.vcoach.ui.selectitem.components.FoodItemCard
 import java.io.File
 
 @Composable
 fun SelectItemScreen(
     onBackClick: () -> Unit = {},
     onPhotoAdded: (SelectedPhoto) -> Unit = {},
+    viewModel: SelectItemViewModel = viewModel(),
 ) {
     val context = LocalContext.current
-    val foodItems = remember { emptyList<String>() }
+    val foodItems by viewModel.foodItems.collectAsState()
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
     var pendingCameraPath by remember { mutableStateOf<String?>(null) }
     val photoLauncher = rememberLauncherForActivityResult(
@@ -75,6 +81,17 @@ fun SelectItemScreen(
         pendingCameraUri = null
         pendingCameraPath = null
     }
+    val onAddPhotoClick = {
+        try {
+            val cameraImageFile = createInternalImageFile(context)
+            pendingCameraPath = cameraImageFile.absolutePath
+            pendingCameraUri = createInternalImageUri(context, cameraImageFile)
+            photoLauncher.launch(createPhotoChooserIntent(pendingCameraUri))
+        } catch (_: ActivityNotFoundException) {
+            pendingCameraUri = null
+            pendingCameraPath = null
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -87,19 +104,38 @@ fun SelectItemScreen(
 
         if (foodItems.isEmpty()) {
             EmptyFoodItemContent(
-                onAddPhotoClick = {
-                    try {
-                        val cameraImageFile = createInternalImageFile(context)
-                        pendingCameraPath = cameraImageFile.absolutePath
-                        pendingCameraUri = createInternalImageUri(context, cameraImageFile)
-                        photoLauncher.launch(createPhotoChooserIntent(pendingCameraUri))
-                    } catch (_: ActivityNotFoundException) {
-                        pendingCameraUri = null
-                        pendingCameraPath = null
-                    }
-                },
+                onAddPhotoClick = onAddPhotoClick,
                 modifier = Modifier.weight(1f),
             )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    items(foodItems) { foodItem ->
+                        FoodItemCard(
+                            foodName = foodItem.foodName,
+                            imagePath = foodItem.imagePath,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                VCoachPrimaryButton(
+                    text = "?ъ쭊 異붽??섍린",
+                    onClick = onAddPhotoClick,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
