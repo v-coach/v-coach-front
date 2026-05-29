@@ -70,7 +70,6 @@ fun DetectorScreen(
                 DetectorScreenSet(
                     selectedTab = selectedTab,
                     uiState = uiState,
-                    onAlternativeFoodsRequest = viewModel::getAlternativeFoods,
                 )
             }
         }

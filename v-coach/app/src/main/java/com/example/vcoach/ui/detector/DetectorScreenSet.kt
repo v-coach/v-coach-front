@@ -1,13 +1,13 @@
 package com.example.vcoach.ui.detector
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.domain.usecase.CheckRestrictedIngredientUseCase
 import com.example.vcoach.domain.usecase.GetRestrictedIngredientsUseCase
 import com.example.vcoach.ui.detector.components.IngredientAnalysisContent
+import com.example.vcoach.ui.detector.components.LoadingContent
 import com.example.vcoach.ui.detector.components.NutritionAnalysisContent
 import com.example.vcoach.ui.detector.components.RestrictedIngredientContent
 
@@ -15,8 +15,12 @@ import com.example.vcoach.ui.detector.components.RestrictedIngredientContent
 fun DetectorScreenSet(
     selectedTab: Int,
     uiState: DetectorUiState,
-    onAlternativeFoodsRequest: (List<String>) -> Unit,
 ) {
+    if (uiState is DetectorUiState.Loading) {
+        LoadingContent(message = uiState.message)
+        return
+    }
+
     val detectedIngredientItems = when (uiState) {
         is DetectorUiState.Success -> uiState.detectedIngredients
         else -> emptyList()
@@ -43,13 +47,6 @@ fun DetectorScreenSet(
             userType = userType,
             detectedIngredients = detectedIngredientItems,
         )
-    }
-    val requestIngredients = restrictedDetectedIngredientItems
-
-    LaunchedEffect(requestIngredients) {
-        if (requestIngredients.isNotEmpty()) {
-            onAlternativeFoodsRequest(requestIngredients)
-        }
     }
 
     when (selectedTab) {

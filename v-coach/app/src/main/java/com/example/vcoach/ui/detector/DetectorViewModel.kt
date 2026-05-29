@@ -7,8 +7,11 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vcoach.ai.TfliteFoodDetector
+import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.data.remote.IngredientRequest
 import com.example.vcoach.data.remote.RetrofitClient
+import com.example.vcoach.data.remote.SetListData
+import com.example.vcoach.domain.usecase.GetRestrictedIngredientsUseCase
 import com.example.vcoach.ui.photo.SelectedPhoto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +30,8 @@ class DetectorViewModel(
     val selectedPhoto: StateFlow<SelectedPhoto?> = _selectedPhoto.asStateFlow()
 
     private val foodDetector = TfliteFoodDetector(application)
+    private val userPreferences = UserPreferences(application)
+    private val getRestrictedIngredientsUseCase = GetRestrictedIngredientsUseCase()
 
     fun setSelectedPhoto(photo: SelectedPhoto) {
         _selectedPhoto.value = photo
@@ -36,44 +41,41 @@ class DetectorViewModel(
     fun setDetectedIngredients(ingredients: List<String>) {
         _uiState.value = DetectorUiState.Success(
             detectedIngredients = ingredients,
+            isAdditionalAnalysisComplete = true,
         )
     }
 
-    fun getAlternativeFoods(ingredients: List<String>) {
+    private suspend fun getAlternativeFoods(ingredients: List<String>): List<SetListData> {
         val requestIngredients = ingredients.distinct()
-        if (requestIngredients.isEmpty()) return
+        if (requestIngredients.isEmpty()) return emptyList()
         val requestIngredientText = requestIngredients.joinToString(", ")
 
-        viewModelScope.launch {
-            Log.d(TAG, "Request alternative foods: ingredient=$requestIngredientText")
+        Log.d(TAG, "Request alternative foods: ingredient=$requestIngredientText")
+        return runCatching {
+            RetrofitClient.foodApiService.getAlternativeFoods(
+                IngredientRequest(requestIngredientText),
+            )
+        }.onSuccess { setListItems ->
+            Log.d(TAG, "Alternative foods response size=${setListItems.size}, items=$setListItems")
 
-            runCatching {
-                RetrofitClient.foodApiService.getAlternativeFoods(
-                    IngredientRequest(requestIngredientText),
-                )
-            }.onSuccess { setListItems ->
-                Log.d(TAG, "Alternative foods response size=${setListItems.size}, items=$setListItems")
-
-                val detectedIngredients = when (val currentState = _uiState.value) {
-                    is DetectorUiState.Success -> currentState.detectedIngredients
-                    else -> requestIngredients
-                }
-
-                if (setListItems.isEmpty()) {
-                    Log.w(TAG, "Alternative foods response is empty")
-                }
-
-                _uiState.value = DetectorUiState.Success(
-                    detectedIngredients = detectedIngredients,
-                    setListItems = setListItems,
-                )
-            }.onFailure { throwable ->
-                Log.e(TAG, "Failed to get alternative foods: ingredient=$requestIngredientText", throwable)
-                if (_uiState.value !is DetectorUiState.Success) {
-                    setError(throwable.message ?: "Failed to get alternative foods")
-                }
+            if (setListItems.isEmpty()) {
+                Log.w(TAG, "Alternative foods response is empty")
             }
+        }.onFailure { throwable ->
+            Log.e(TAG, "Failed to get alternative foods: ingredient=$requestIngredientText", throwable)
+        }.getOrDefault(emptyList())
+    }
+
+    private suspend fun getAlternativeFoodsForRestrictedIngredients(
+        detectedIngredients: List<String>,
+    ): List<SetListData> {
+        val userType = userPreferences.getUserType()
+        val restrictedIngredients = getRestrictedIngredientsUseCase(userType)
+        val restrictedDetectedIngredients = detectedIngredients.filter { ingredient ->
+            ingredient in restrictedIngredients
         }
+
+        return getAlternativeFoods(restrictedDetectedIngredients)
     }
 
     fun clearResult() {
@@ -91,21 +93,38 @@ class DetectorViewModel(
 
     private fun analyzePhoto(photo: SelectedPhoto) {
         viewModelScope.launch {
-            _uiState.value = DetectorUiState.Loading
+            _uiState.value = DetectorUiState.Loading()
 
             runCatching {
                 val bitmap = photo.toBitmap()
                     ?: error("Selected photo could not be loaded.")
-                foodDetector.detect(bitmap)
-            }.onSuccess { results ->
-                val detectedIngredients = results.map { it.ingredientName }
+                val detectedIngredients = foodDetector.detect(bitmap).map { result ->
+                    result.ingredientName
+                }
+
                 _uiState.value = DetectorUiState.Success(
                     detectedIngredients = detectedIngredients,
+                    isAdditionalAnalysisComplete = true,
                 )
+                fetchAlternativeFoodsInBackground(detectedIngredients)
             }.onFailure { throwable ->
                 Log.e(TAG, "Failed to analyze selected photo", throwable)
                 setError(throwable.message ?: "Failed to analyze selected photo")
             }
+        }
+    }
+
+    private fun fetchAlternativeFoodsInBackground(detectedIngredients: List<String>) {
+        viewModelScope.launch {
+            val setListItems = getAlternativeFoodsForRestrictedIngredients(detectedIngredients)
+            if (setListItems.isEmpty()) return@launch
+
+            val currentState = _uiState.value as? DetectorUiState.Success ?: return@launch
+            if (currentState.detectedIngredients != detectedIngredients) return@launch
+
+            _uiState.value = currentState.copy(
+                setListItems = setListItems,
+            )
         }
     }
 

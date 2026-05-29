@@ -47,7 +47,7 @@ fun RestrictedIngredientContent(
             )
         }
 
-        if (hasRestrictedIngredient) {
+        if (setListItems.isNotEmpty()) {
             AlternativeFoodCard(setListItems = setListItems)
         }
     }
@@ -68,7 +68,7 @@ private fun RestrictedIngredientSummary(
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black,
-                lineHeight = 28.sp,
+                lineHeight = 32.sp,
             )
 
             Text(
@@ -113,16 +113,8 @@ private fun AlternativeFoodCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (setListItems.isEmpty()) {
-                    Text(
-                        text = "응답을 기다리는 중입니다.",
-                        fontSize = 14.sp,
-                        color = VCoachTextGray,
-                    )
-                } else {
-                    setListItems.forEach { item ->
-                        AlternativeFoodItem(item = item)
-                    }
+                setListItems.forEach { item ->
+                    AlternativeFoodItem(item = item)
                 }
             }
         }
