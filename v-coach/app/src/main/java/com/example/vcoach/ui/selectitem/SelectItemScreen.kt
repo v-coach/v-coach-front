@@ -115,7 +115,7 @@ private fun createPhotoChooserIntent(cameraOutputUri: Uri?): Intent {
         addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         cameraOutputUri?.let {
             putExtra(MediaStore.EXTRA_OUTPUT, it)
-            clipData = ClipData.newUri(null, "camera_output", it)
+            clipData = ClipData.newRawUri("camera_output", it)
         }
     }
 
