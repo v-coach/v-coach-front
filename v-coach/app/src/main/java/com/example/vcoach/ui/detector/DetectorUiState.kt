@@ -5,7 +5,7 @@ import com.example.vcoach.data.remote.SetListData
 sealed interface DetectorUiState {
     data object Idle : DetectorUiState
     data class Loading(
-        val message: String = "추가로 식품 분석 중입니다",
+        val message: String = "식품 분석 중입니다",
     ) : DetectorUiState
 
     data class Success(

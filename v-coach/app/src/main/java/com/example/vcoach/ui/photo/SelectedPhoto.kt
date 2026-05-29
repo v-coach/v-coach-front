@@ -6,4 +6,5 @@ import android.net.Uri
 data class SelectedPhoto(
     val uri: Uri? = null,
     val bitmap: Bitmap? = null,
+    val imagePath: String? = null,
 )

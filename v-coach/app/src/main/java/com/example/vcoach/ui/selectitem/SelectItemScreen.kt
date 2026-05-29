@@ -2,7 +2,7 @@ package com.example.vcoach.ui.selectitem
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.ContentValues
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -35,9 +35,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.example.vcoach.ui.components.VCoachPrimaryButton
 import com.example.vcoach.ui.components.VCoachTopBar
 import com.example.vcoach.ui.photo.SelectedPhoto
+import java.io.File
 
 @Composable
 fun SelectItemScreen(
@@ -47,13 +49,23 @@ fun SelectItemScreen(
     val context = LocalContext.current
     val foodItems = remember { emptyList<String>() }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraPath by remember { mutableStateOf<String?>(null) }
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         val selectedPhoto = if (result.resultCode == Activity.RESULT_OK) {
             result.data
-                ?.toSelectedPhoto(pendingCameraUri)
-                ?: pendingCameraUri?.let { SelectedPhoto(uri = it) }
+                ?.toSelectedPhoto(
+                    context = context,
+                    cameraOutputUri = pendingCameraUri,
+                    cameraImagePath = pendingCameraPath,
+                )
+                ?: pendingCameraUri?.let {
+                    SelectedPhoto(
+                        uri = it,
+                        imagePath = pendingCameraPath,
+                    )
+                }
         } else {
             null
         }
@@ -61,6 +73,7 @@ fun SelectItemScreen(
         selectedPhoto?.let(onPhotoAdded)
 
         pendingCameraUri = null
+        pendingCameraPath = null
     }
 
     Column(
@@ -76,13 +89,13 @@ fun SelectItemScreen(
             EmptyFoodItemContent(
                 onAddPhotoClick = {
                     try {
-                        pendingCameraUri = runCatching {
-                            createCameraImageUri(context)
-                        }.getOrNull()
+                        val cameraImageFile = createInternalImageFile(context)
+                        pendingCameraPath = cameraImageFile.absolutePath
+                        pendingCameraUri = createInternalImageUri(context, cameraImageFile)
                         photoLauncher.launch(createPhotoChooserIntent(pendingCameraUri))
                     } catch (_: ActivityNotFoundException) {
                         pendingCameraUri = null
-                        // No system photo or camera app is available.
+                        pendingCameraPath = null
                     }
                 },
                 modifier = Modifier.weight(1f),
@@ -100,7 +113,10 @@ private fun createPhotoChooserIntent(cameraOutputUri: Uri?): Intent {
     val takePhotoIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        cameraOutputUri?.let { putExtra(MediaStore.EXTRA_OUTPUT, it) }
+        cameraOutputUri?.let {
+            putExtra(MediaStore.EXTRA_OUTPUT, it)
+            clipData = ClipData.newUri(null, "camera_output", it)
+        }
     }
 
     return Intent.createChooser(selectPhotoIntent, "사진 추가").apply {
@@ -108,31 +124,53 @@ private fun createPhotoChooserIntent(cameraOutputUri: Uri?): Intent {
     }
 }
 
-private fun createCameraImageUri(context: Context): Uri? {
-    val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, "v-coach-${System.currentTimeMillis()}.jpg")
-        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/v-coach")
-        }
-    }
-
-    return context.contentResolver.insert(
-        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-        values,
+private fun createInternalImageFile(context: Context): File {
+    return File.createTempFile(
+        "v-coach-",
+        ".jpg",
+        context.filesDir,
     )
 }
 
-private fun Intent.toSelectedPhoto(cameraOutputUri: Uri?): SelectedPhoto? {
+private fun createInternalImageUri(context: Context, imageFile: File): Uri {
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        imageFile,
+    )
+}
+
+private fun Intent.toSelectedPhoto(
+    context: Context,
+    cameraOutputUri: Uri?,
+    cameraImagePath: String?,
+): SelectedPhoto? {
     val selectedUri = data
     val cameraBitmap = getCameraPreviewBitmap()
 
     return when {
-        selectedUri != null -> SelectedPhoto(uri = selectedUri)
-        cameraOutputUri != null -> SelectedPhoto(uri = cameraOutputUri)
+        selectedUri != null -> selectedUri.copyToInternalPhoto(context)
+        cameraOutputUri != null -> SelectedPhoto(
+            uri = cameraOutputUri,
+            imagePath = cameraImagePath,
+        )
         cameraBitmap != null -> SelectedPhoto(bitmap = cameraBitmap)
         else -> null
     }
+}
+
+private fun Uri.copyToInternalPhoto(context: Context): SelectedPhoto? {
+    val imageFile = createInternalImageFile(context)
+    context.contentResolver.openInputStream(this)?.use { inputStream ->
+        imageFile.outputStream().use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+    } ?: return null
+
+    return SelectedPhoto(
+        uri = createInternalImageUri(context, imageFile),
+        imagePath = imageFile.absolutePath,
+    )
 }
 
 private fun Intent.getCameraPreviewBitmap(): Bitmap? {
