@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vcoach.data.remote.IngredientRequest
 import com.example.vcoach.data.remote.RetrofitClient
+import com.example.vcoach.ui.photo.SelectedPhoto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,13 @@ import kotlinx.coroutines.launch
 class DetectorViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<DetectorUiState>(DetectorUiState.Idle)
     val uiState: StateFlow<DetectorUiState> = _uiState.asStateFlow()
+
+    private val _selectedPhoto = MutableStateFlow<SelectedPhoto?>(null)
+    val selectedPhoto: StateFlow<SelectedPhoto?> = _selectedPhoto.asStateFlow()
+
+    fun setSelectedPhoto(photo: SelectedPhoto) {
+        _selectedPhoto.value = photo
+    }
 
     fun setDetectedIngredients(ingredients: List<String>) {
         _uiState.value = DetectorUiState.Success(

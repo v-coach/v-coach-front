@@ -31,11 +31,13 @@ fun DetectorScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val uiState by viewModel.uiState.collectAsState()
+    val selectedPhoto by viewModel.selectedPhoto.collectAsState()
 
     Scaffold(
         modifier = Modifier
             .statusBarsPadding()
-            .navigationBarsPadding(),
+            .navigationBarsPadding()
+            .background(Color.White),
         topBar = {
             VCoachTopBar(onBackClick = onBackClick)
         },
@@ -54,6 +56,7 @@ fun DetectorScreen(
                 .background(Color.White),
         ) {
             PhotoPreview(
+                selectedPhoto = selectedPhoto,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(310.dp),
