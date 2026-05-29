@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vcoach.data.preferences.UserPreferences
+import com.example.vcoach.domain.usecase.RestrictedIngredientSet
 import com.example.vcoach.ui.components.VCoachOptionCard
 import com.example.vcoach.ui.components.VCoachPrimaryButton
 import com.example.vcoach.ui.components.VCoachTopBar
@@ -107,4 +108,4 @@ fun SettingsScreen(
     }
 }
 
-private val USER_TYPES = listOf("A", "B", "C", "D", "E", "F")
+private val USER_TYPES = RestrictedIngredientSet.userTypes

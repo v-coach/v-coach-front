@@ -2,20 +2,31 @@ package com.example.vcoach.domain.usecase
 
 class GetRestrictedIngredientsUseCase {
     operator fun invoke(userType: String): List<String> {
-        val allowedUntilIndex = when (userType) {
-            "A" -> -1
-            "B" -> 0
-            "C" -> 1
-            "D" -> 2
-            "E" -> 3
-            "F" -> 4
-            else -> -1
+        return RestrictedIngredientSet.getRestrictedIngredients(userType)
+    }
+}
+
+object RestrictedIngredientSet {
+    val ingredientOrder = listOf(
+        "유제품",
+        "계란",
+        "어패류",
+        "닭고기",
+        "육류",
+    )
+
+    val userTypes = listOf("A", "B", "C", "D", "E")
+
+    fun getRestrictedIngredients(userType: String): List<String> {
+        val count = when (userType) {
+            "A" -> 1
+            "B" -> 2
+            "C" -> 3
+            "D" -> 4
+            "E" -> 5
+            else -> 1
         }
 
-        return TARGET_INGREDIENTS.drop(allowedUntilIndex + 1)
-    }
-
-    private companion object {
-        val TARGET_INGREDIENTS = listOf("재료1", "재료2", "재료3", "재료4", "재료5")
+        return ingredientOrder.take(count)
     }
 }
