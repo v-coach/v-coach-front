@@ -1,6 +1,7 @@
 package com.example.vcoach
 
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -22,6 +23,17 @@ class MainActivity : ComponentActivity() {
             VCoachTheme {
                 var currentScreen: VCoachScreen by remember {
                     mutableStateOf(VCoachScreen.Home)
+                }
+
+                BackHandler(enabled = currentScreen != VCoachScreen.Home) {
+                    currentScreen = when (currentScreen) {
+                        VCoachScreen.Detector -> VCoachScreen.SelectItem
+                        VCoachScreen.SelectItem,
+                        VCoachScreen.Settings,
+                        -> VCoachScreen.Home
+
+                        VCoachScreen.Home -> VCoachScreen.Home
+                    }
                 }
 
                 when (currentScreen) {
