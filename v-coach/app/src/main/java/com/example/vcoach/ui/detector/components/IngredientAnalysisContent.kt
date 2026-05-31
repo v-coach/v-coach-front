@@ -61,7 +61,7 @@ fun IngredientAnalysisContent(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "식품 제한 여부와 탄소 배출량을 확인해 주세요",
+                    text = "식품 제한 여부를 확인해 주세요",
                     fontSize = 14.sp,
                     color = Color.Gray,
                 )
@@ -83,7 +83,7 @@ fun IngredientAnalysisContent(
 private fun CarbonEmissionCard(
     detectedIngredientItems: List<String>,
 ) {
-    val carbonReport = buildCarbonReport(detectedIngredientItems)
+    val report = buildCarbonReport(detectedIngredientItems)
 
     AnalysisResultCard(
         text = "탄소 배출량",
@@ -105,7 +105,7 @@ private fun CarbonEmissionCard(
                 .background(Color(0xFFEAF7EE))
                 .padding(horizontal = 18.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             CarbonCloudIcon()
 
@@ -114,50 +114,44 @@ private fun CarbonEmissionCard(
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Text(
-                    text = "현재 예상 배출량",
+                    text = "현재 배출량",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF333333),
                 )
 
-                if (detectedIngredientItems.isNotEmpty()) {
-                    Text(
-                        text = "${formatEmission(carbonReport.currentEmission)} kg CO2e",
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black,
-                    )
+                Text(
+                    text = if (detectedIngredientItems.isEmpty()) {
+                        "분석 대기 중"
+                    } else {
+                        "${formatEmission(report.currentEmission)} kg CO2e"
+                    },
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (detectedIngredientItems.isEmpty()) Color.Gray else Color.Black,
+                )
 
-                    Text(
-                        text = "${detectedIngredientItems.first()} 기준 포함 재료 추정값이에요",
-                        fontSize = 13.sp,
-                        color = Color(0xFF555555),
-                    )
-                } else {
-                    Text(
-                        text = "분석 대기 중",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray,
-                    )
-
-                    Text(
-                        text = "식품을 인식하면 예상 배출량을 보여드려요",
-                        fontSize = 13.sp,
-                        color = Color(0xFF555555),
-                    )
-                }
+                Text(
+                    text = if (detectedIngredientItems.isEmpty()) {
+                        "식품을 인식하면 예상 배출량을 보여드려요"
+                    } else {
+                        "감지된 재료 기준 예상 배출량이에요"
+                    },
+                    fontSize = 13.sp,
+                    color = Color(0xFF555555),
+                    lineHeight = 18.sp,
+                )
             }
         }
 
-        if (carbonReport.meatAlternatives.isNotEmpty()) {
+        if (report.alternatives.isNotEmpty()) {
             Spacer(modifier = Modifier.height(14.dp))
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFF7FBF8))
+                    .background(Color(0xFFF6FBF8))
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -169,22 +163,22 @@ private fun CarbonEmissionCard(
                 )
 
                 Text(
-                    text = "${formatEmission(carbonReport.replacedEmission)} kg CO2e",
+                    text = "${formatEmission(report.replacedEmission)} kg CO2e",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = VCoachGreen,
                 )
 
                 Text(
-                    text = "약 ${formatEmission(carbonReport.savedEmission)} kg CO2e 절약 가능",
+                    text = "약 ${formatEmission(report.savedEmission)} kg CO2e 절약 가능",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF333333),
                 )
 
-                carbonReport.meatAlternatives.forEach { alternative ->
+                report.alternatives.forEach { alternative ->
                     Text(
-                        text = "${alternative.meatName} -> ${alternative.replacementName}",
+                        text = "${alternative.meatName} -> ${alternative.replacementName} 대체",
                         fontSize = 13.sp,
                         color = Color(0xFF666666),
                     )
@@ -252,10 +246,10 @@ private fun buildCarbonReport(
     val currentEmission = detectedIngredientItems.sumOf { ingredient ->
         carbonEmissionFor(ingredient)
     }
-    val meatAlternatives = detectedIngredientItems.mapNotNull { ingredient ->
+    val alternatives = detectedIngredientItems.mapNotNull { ingredient ->
         findMeatAlternative(ingredient)
     }
-    val savedEmission = meatAlternatives.sumOf { alternative ->
+    val savedEmission = alternatives.sumOf { alternative ->
         (alternative.meatEmission - alternative.replacementEmission).coerceAtLeast(0.0)
     }
 
@@ -263,7 +257,7 @@ private fun buildCarbonReport(
         currentEmission = currentEmission,
         replacedEmission = (currentEmission - savedEmission).coerceAtLeast(0.0),
         savedEmission = savedEmission,
-        meatAlternatives = meatAlternatives,
+        alternatives = alternatives,
     )
 }
 
@@ -302,7 +296,7 @@ private data class CarbonReport(
     val currentEmission: Double,
     val replacedEmission: Double,
     val savedEmission: Double,
-    val meatAlternatives: List<MeatAlternative>,
+    val alternatives: List<MeatAlternative>,
 )
 
 private data class MeatAlternative(
