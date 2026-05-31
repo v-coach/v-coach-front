@@ -204,8 +204,9 @@ class DetectorViewModel(
             runCatching {
                 val bitmap = photo.toBitmap()
                     ?: error("Selected photo could not be loaded.")
+                val foodNameBitmap = bitmap.toFoodNameBitmap()
                 val analysisBitmap = bitmap.toAnalysisBitmap()
-                val foodName = detectFoodName(analysisBitmap)
+                val foodName = detectFoodName(foodNameBitmap)
                 val detectedIngredients = foodDetector.detect(analysisBitmap).map { result ->
                     result.ingredientName
                 }
@@ -382,9 +383,23 @@ class DetectorViewModel(
         }
     }
 
+    private suspend fun Bitmap.toFoodNameBitmap(): Bitmap = withContext(Dispatchers.Default) {
+        if (width == FOOD_NAME_IMAGE_SIZE && height == FOOD_NAME_IMAGE_SIZE) {
+            this@toFoodNameBitmap
+        } else {
+            Bitmap.createScaledBitmap(
+                this@toFoodNameBitmap,
+                FOOD_NAME_IMAGE_SIZE,
+                FOOD_NAME_IMAGE_SIZE,
+                true,
+            )
+        }
+    }
+
     private companion object {
         const val TAG = "DetectorViewModel"
         const val ANALYSIS_IMAGE_SIZE = 512
+        const val FOOD_NAME_IMAGE_SIZE = 224
         const val DEFAULT_FOOD_NAME = "식품"
     }
 }

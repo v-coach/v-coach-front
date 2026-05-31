@@ -194,18 +194,10 @@ private fun AlternativeFoodPendingCard() {
         textColor = VCoachGreen,
     ) {
         Text(
-            text = "대체 식품을 정리하는 중입니다",
+            text = "불러오는 중입니다",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "분석된 제한 성분을 기준으로 추천 결과를 불러옵니다",
-            fontSize = 14.sp,
-            color = VCoachTextGray,
         )
     }
 }
