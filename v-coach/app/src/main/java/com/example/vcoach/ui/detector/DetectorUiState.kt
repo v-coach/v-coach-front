@@ -10,9 +10,11 @@ sealed interface DetectorUiState {
     ) : DetectorUiState
 
     data class Success(
+        val foodName: String = "",
         val detectedIngredients: List<String>,
         val emissionAmount: Int = 0,
         val emissionItems: List<EmissionItem> = emptyList(),
+        val nutritionItems: List<String> = emptyList(),
         val setListItems: List<SetListData> = emptyList(),
         val isAdditionalAnalysisComplete: Boolean = false,
     ) : DetectorUiState

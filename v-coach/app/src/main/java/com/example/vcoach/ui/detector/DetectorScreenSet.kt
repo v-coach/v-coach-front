@@ -25,6 +25,10 @@ fun DetectorScreenSet(
         is DetectorUiState.Success -> uiState.detectedIngredients
         else -> emptyList()
     }
+    val foodName = when (uiState) {
+        is DetectorUiState.Success -> uiState.foodName
+        else -> ""
+    }
     val setListItems = when (uiState) {
         is DetectorUiState.Success -> uiState.setListItems
         else -> emptyList()
@@ -35,6 +39,10 @@ fun DetectorScreenSet(
     }
     val emissionItems = when (uiState) {
         is DetectorUiState.Success -> uiState.emissionItems
+        else -> emptyList()
+    }
+    val nutritionItems = when (uiState) {
+        is DetectorUiState.Success -> uiState.nutritionItems
         else -> emptyList()
     }
 
@@ -59,6 +67,7 @@ fun DetectorScreenSet(
 
     when (selectedTab) {
         0 -> IngredientAnalysisContent(
+            foodName = foodName,
             detectedIngredientItems = detectedIngredientItems,
             emissionAmount = emissionAmount,
             emissionItems = emissionItems,
@@ -69,6 +78,9 @@ fun DetectorScreenSet(
             restrictedIngredientItems = restrictedDetectedIngredientItems,
             setListItems = setListItems,
         )
-        2 -> NutritionAnalysisContent()
+        2 -> NutritionAnalysisContent(
+            foodName = foodName,
+            nutritionItems = nutritionItems,
+        )
     }
 }

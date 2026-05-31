@@ -28,6 +28,7 @@ import java.util.Locale
 
 @Composable
 fun IngredientAnalysisContent(
+    foodName: String,
     detectedIngredientItems: List<String>,
     emissionAmount: Int,
     emissionItems: List<EmissionItem>,
@@ -43,7 +44,10 @@ fun IngredientAnalysisContent(
             text = "AI 분석 완료",
             textColor = VCoachGreen,
         ) {
-            IngredientResultSummary(detectedIngredientItems = detectedIngredientItems)
+            IngredientResultSummary(
+                foodName = foodName,
+                detectedIngredientItems = detectedIngredientItems,
+            )
         }
 
         EmissionResultCard(
@@ -56,8 +60,21 @@ fun IngredientAnalysisContent(
 
 @Composable
 private fun IngredientResultSummary(
+    foodName: String,
     detectedIngredientItems: List<String>,
 ) {
+    if (foodName.isNotBlank()) {
+        Text(
+            text = "${foodName}입니다",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+            lineHeight = 34.sp,
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+    }
+
     if (detectedIngredientItems.isNotEmpty()) {
         DetectedIngredient(detectedIngredientItems = detectedIngredientItems)
 

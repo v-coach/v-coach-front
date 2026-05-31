@@ -1,6 +1,5 @@
 package com.example.vcoach.data.remote
 
-data class IngredientRequest(
+data class NutritionRequest(
     val foodName: String,
-    val ingredient: String,
 )
