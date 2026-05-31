@@ -83,9 +83,7 @@ fun IngredientAnalysisContent(
 private fun CarbonEmissionCard(
     detectedIngredientItems: List<String>,
 ) {
-    val carbonEmission = estimateCarbonEmission(detectedIngredientItems)
-    val formattedEmission = String.format(Locale.US, "%.1f", carbonEmission)
-    val mainIngredient = detectedIngredientItems.firstOrNull() ?: "식품"
+    val carbonReport = buildCarbonReport(detectedIngredientItems)
 
     AnalysisResultCard(
         text = "탄소 배출량",
@@ -116,7 +114,7 @@ private fun CarbonEmissionCard(
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Text(
-                    text = "탄소 배출량",
+                    text = "현재 예상 배출량",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF333333),
@@ -124,14 +122,14 @@ private fun CarbonEmissionCard(
 
                 if (detectedIngredientItems.isNotEmpty()) {
                     Text(
-                        text = "$formattedEmission kg CO2e",
+                        text = "${formatEmission(carbonReport.currentEmission)} kg CO2e",
                         fontSize = 23.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black,
                     )
 
                     Text(
-                        text = "$mainIngredient 기준 예상 배출량이에요",
+                        text = "${detectedIngredientItems.first()} 기준 포함 재료 추정값이에요",
                         fontSize = 13.sp,
                         color = Color(0xFF555555),
                     )
@@ -147,6 +145,48 @@ private fun CarbonEmissionCard(
                         text = "식품을 인식하면 예상 배출량을 보여드려요",
                         fontSize = 13.sp,
                         color = Color(0xFF555555),
+                    )
+                }
+            }
+        }
+
+        if (carbonReport.meatAlternatives.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFF7FBF8))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "육류 대체 시",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                )
+
+                Text(
+                    text = "${formatEmission(carbonReport.replacedEmission)} kg CO2e",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = VCoachGreen,
+                )
+
+                Text(
+                    text = "약 ${formatEmission(carbonReport.savedEmission)} kg CO2e 절약 가능",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF333333),
+                )
+
+                carbonReport.meatAlternatives.forEach { alternative ->
+                    Text(
+                        text = "${alternative.meatName} -> ${alternative.replacementName}",
+                        fontSize = 13.sp,
+                        color = Color(0xFF666666),
                     )
                 }
             }
@@ -186,7 +226,6 @@ private fun CarbonCloudIcon() {
                 radius = size.width * 0.18f,
                 center = Offset(size.width * 0.68f, size.height * 0.35f),
             )
-
             drawRoundRect(
                 color = cloudStroke,
                 topLeft = Offset(size.width * 0.14f, size.height * 0.28f),
@@ -194,7 +233,6 @@ private fun CarbonCloudIcon() {
                 cornerRadius = CornerRadius(size.height * 0.18f, size.height * 0.18f),
                 style = Stroke(width = strokeWidth),
             )
-
         }
 
         Text(
@@ -208,27 +246,95 @@ private fun CarbonCloudIcon() {
     }
 }
 
-private fun estimateCarbonEmission(
+private fun buildCarbonReport(
     detectedIngredientItems: List<String>,
-): Double {
-    if (detectedIngredientItems.isEmpty()) return 0.0
-
-    val totalEmission = detectedIngredientItems.sumOf { ingredient ->
-        carbonEmissionFactors.entries
-            .firstOrNull { (name, _) ->
-                ingredient.contains(name, ignoreCase = true)
-            }
-            ?.value ?: DEFAULT_CARBON_EMISSION
+): CarbonReport {
+    val currentEmission = detectedIngredientItems.sumOf { ingredient ->
+        carbonEmissionFor(ingredient)
+    }
+    val meatAlternatives = detectedIngredientItems.mapNotNull { ingredient ->
+        findMeatAlternative(ingredient)
+    }
+    val savedEmission = meatAlternatives.sumOf { alternative ->
+        (alternative.meatEmission - alternative.replacementEmission).coerceAtLeast(0.0)
     }
 
-    return totalEmission / detectedIngredientItems.size
+    return CarbonReport(
+        currentEmission = currentEmission,
+        replacedEmission = (currentEmission - savedEmission).coerceAtLeast(0.0),
+        savedEmission = savedEmission,
+        meatAlternatives = meatAlternatives,
+    )
 }
+
+private fun carbonEmissionFor(
+    ingredient: String,
+): Double {
+    return carbonEmissionFactors.entries
+        .firstOrNull { (name, _) ->
+            ingredient.contains(name, ignoreCase = true)
+        }
+        ?.value ?: DEFAULT_CARBON_EMISSION
+}
+
+private fun findMeatAlternative(
+    ingredient: String,
+): MeatAlternative? {
+    return meatAlternativeFactors.entries
+        .firstOrNull { (meatName, _) ->
+            ingredient.contains(meatName, ignoreCase = true)
+        }
+        ?.let { (meatName, replacement) ->
+            MeatAlternative(
+                meatName = ingredient.ifBlank { meatName },
+                replacementName = replacement.name,
+                meatEmission = carbonEmissionFor(ingredient),
+                replacementEmission = replacement.emission,
+            )
+        }
+}
+
+private fun formatEmission(value: Double): String {
+    return String.format(Locale.US, "%.1f", value)
+}
+
+private data class CarbonReport(
+    val currentEmission: Double,
+    val replacedEmission: Double,
+    val savedEmission: Double,
+    val meatAlternatives: List<MeatAlternative>,
+)
+
+private data class MeatAlternative(
+    val meatName: String,
+    val replacementName: String,
+    val meatEmission: Double,
+    val replacementEmission: Double,
+)
+
+private data class ReplacementFactor(
+    val name: String,
+    val emission: Double,
+)
+
+private val meatAlternativeFactors = mapOf(
+    "소고기" to ReplacementFactor("두부", 3.0),
+    "쇠고기" to ReplacementFactor("두부", 3.0),
+    "beef" to ReplacementFactor("tofu", 3.0),
+    "돼지고기" to ReplacementFactor("버섯", 1.0),
+    "pork" to ReplacementFactor("mushroom", 1.0),
+    "닭고기" to ReplacementFactor("병아리콩", 2.0),
+    "chicken" to ReplacementFactor("chickpea", 2.0),
+    "양고기" to ReplacementFactor("두부", 3.0),
+    "lamb" to ReplacementFactor("tofu", 3.0),
+)
 
 private val carbonEmissionFactors = mapOf(
     "소고기" to 60.0,
     "쇠고기" to 60.0,
     "beef" to 60.0,
     "양고기" to 24.0,
+    "lamb" to 24.0,
     "치즈" to 21.0,
     "돼지고기" to 7.0,
     "pork" to 7.0,
@@ -243,10 +349,14 @@ private val carbonEmissionFactors = mapOf(
     "rice" to 4.0,
     "두부" to 3.0,
     "tofu" to 3.0,
+    "병아리콩" to 2.0,
+    "chickpea" to 2.0,
     "우유" to 3.0,
     "milk" to 3.0,
     "토마토" to 1.4,
     "tomato" to 1.4,
+    "버섯" to 1.0,
+    "mushroom" to 1.0,
     "감자" to 0.5,
     "potato" to 0.5,
     "채소" to 0.4,
