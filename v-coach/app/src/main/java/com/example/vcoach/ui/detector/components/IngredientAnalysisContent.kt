@@ -135,7 +135,7 @@ private fun CarbonEmissionCard(
                     text = if (detectedIngredientItems.isEmpty()) {
                         "식품을 인식하면 예상 배출량을 보여드려요"
                     } else {
-                        "감지된 재료 기준 예상 배출량이에요"
+                        carbonEmissionLevelText(report.currentEmission)
                     },
                     fontSize = 13.sp,
                     color = Color(0xFF555555),
@@ -177,11 +177,23 @@ private fun CarbonEmissionCard(
                 )
 
                 report.alternatives.forEach { alternative ->
-                    Text(
-                        text = "${alternative.meatName} -> ${alternative.replacementName} 대체",
-                        fontSize = 13.sp,
-                        color = Color(0xFF666666),
-                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = "${alternative.meatName} -> ${alternative.replacementName} 대체",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF333333),
+                        )
+
+                        Text(
+                            text = alternative.description,
+                            fontSize = 12.sp,
+                            color = Color(0xFF666666),
+                            lineHeight = 17.sp,
+                        )
+                    }
                 }
             }
         }
@@ -284,12 +296,22 @@ private fun findMeatAlternative(
                 replacementName = replacement.name,
                 meatEmission = carbonEmissionFor(ingredient),
                 replacementEmission = replacement.emission,
+                description = replacement.description,
             )
         }
 }
 
 private fun formatEmission(value: Double): String {
     return String.format(Locale.US, "%.1f", value)
+}
+
+private fun carbonEmissionLevelText(emission: Double): String {
+    return when {
+        emission >= 30.0 -> "탄소 배출량이 매우 높은 편이에요"
+        emission >= 10.0 -> "탄소 배출량이 높은 편이에요"
+        emission >= 3.0 -> "탄소 배출량이 보통 수준이에요"
+        else -> "탄소 배출량이 낮은 편이에요"
+    }
 }
 
 private data class CarbonReport(
@@ -304,23 +326,61 @@ private data class MeatAlternative(
     val replacementName: String,
     val meatEmission: Double,
     val replacementEmission: Double,
+    val description: String,
 )
 
 private data class ReplacementFactor(
     val name: String,
     val emission: Double,
+    val description: String,
 )
 
 private val meatAlternativeFactors = mapOf(
-    "소고기" to ReplacementFactor("두부", 3.0),
-    "쇠고기" to ReplacementFactor("두부", 3.0),
-    "beef" to ReplacementFactor("tofu", 3.0),
-    "돼지고기" to ReplacementFactor("버섯", 1.0),
-    "pork" to ReplacementFactor("mushroom", 1.0),
-    "닭고기" to ReplacementFactor("병아리콩", 2.0),
-    "chicken" to ReplacementFactor("chickpea", 2.0),
-    "양고기" to ReplacementFactor("두부", 3.0),
-    "lamb" to ReplacementFactor("tofu", 3.0),
+    "소고기" to ReplacementFactor(
+        name = "두부",
+        emission = 3.0,
+        description = "소고기는 반추동물 사육 과정에서 메탄 배출이 커 탄소 발자국이 높은 편이에요.",
+    ),
+    "쇠고기" to ReplacementFactor(
+        name = "두부",
+        emission = 3.0,
+        description = "소고기는 반추동물 사육 과정에서 메탄 배출이 커 탄소 발자국이 높은 편이에요.",
+    ),
+    "beef" to ReplacementFactor(
+        name = "tofu",
+        emission = 3.0,
+        description = "Beef has a high carbon footprint because cattle emit methane during digestion.",
+    ),
+    "돼지고기" to ReplacementFactor(
+        name = "버섯",
+        emission = 1.0,
+        description = "돼지고기는 소·양보다 메탄 배출은 적지만 사료 소비와 분뇨 처리 과정에서 온실가스가 발생해요.",
+    ),
+    "pork" to ReplacementFactor(
+        name = "mushroom",
+        emission = 1.0,
+        description = "Pork emits less methane than beef or lamb, but feed production and manure still add emissions.",
+    ),
+    "닭고기" to ReplacementFactor(
+        name = "병아리콩",
+        emission = 2.0,
+        description = "닭고기는 사료 효율이 높아 흔한 육류 중 탄소 발자국이 낮은 편이지만, 식물성 재료로 바꾸면 더 줄일 수 있어요.",
+    ),
+    "chicken" to ReplacementFactor(
+        name = "chickpea",
+        emission = 2.0,
+        description = "Chicken is relatively efficient among meats, but swapping it for legumes can reduce emissions further.",
+    ),
+    "양고기" to ReplacementFactor(
+        name = "두부",
+        emission = 3.0,
+        description = "양고기도 반추동물에서 나오는 메탄 영향이 커 탄소 배출량이 높은 편이에요.",
+    ),
+    "lamb" to ReplacementFactor(
+        name = "tofu",
+        emission = 3.0,
+        description = "Lamb has high emissions because sheep are ruminants that produce methane.",
+    ),
 )
 
 private val carbonEmissionFactors = mapOf(
