@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vcoach.data.preferences.UserPreferences
+import com.example.vcoach.domain.usecase.RestrictedIngredientSet
 import com.example.vcoach.ui.components.VCoachOptionCard
 import com.example.vcoach.ui.components.VCoachPrimaryButton
 import com.example.vcoach.ui.components.VCoachTopBar
@@ -40,6 +43,8 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .background(Color.White),
     ) {
         VCoachTopBar(
@@ -103,4 +108,4 @@ fun SettingsScreen(
     }
 }
 
-private val USER_TYPES = listOf("A", "B", "C", "D", "E", "F")
+private val USER_TYPES = RestrictedIngredientSet.userTypes
