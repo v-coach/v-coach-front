@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.vcoach.ui.theme.VCoachBorderGray
 import com.example.vcoach.ui.theme.VCoachDisabledGray
+import com.example.vcoach.ui.theme.VCoachGreen
 import java.io.File
 
 @Composable
@@ -40,34 +43,46 @@ fun FoodItemCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White,
         ),
         border = BorderStroke(
-            width = 2.dp,
+            width = 1.dp,
             color = VCoachBorderGray,
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
+            defaultElevation = 2.dp,
         ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FoodThumbnail(imagePath = imagePath)
 
             Spacer(modifier = Modifier.width(18.dp))
 
-            Text(
-                text = foodName,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(
+                    text = foodName,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                )
+
+                Text(
+                    text = "분석 결과 보기",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VCoachGreen,
+                )
+            }
         }
     }
 }
@@ -79,7 +94,7 @@ private fun FoodThumbnail(
 ) {
     val thumbnailModifier = modifier
         .size(78.dp)
-        .clip(RoundedCornerShape(10.dp))
+        .clip(RoundedCornerShape(8.dp))
         .background(VCoachDisabledGray)
 
     if (imagePath.isNullOrBlank()) {

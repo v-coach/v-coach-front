@@ -75,6 +75,10 @@ private fun IngredientResultSummary(
         Spacer(modifier = Modifier.height(18.dp))
     }
 
+    AnalysisCountSummary(detectedIngredientCount = detectedIngredientItems.size)
+
+    Spacer(modifier = Modifier.height(16.dp))
+
     if (detectedIngredientItems.isNotEmpty()) {
         DetectedIngredient(detectedIngredientItems = detectedIngredientItems)
 
@@ -91,6 +95,37 @@ private fun IngredientResultSummary(
         )
     } else {
         EmptyIngredientResult()
+    }
+}
+
+@Composable
+private fun AnalysisCountSummary(
+    detectedIngredientCount: Int,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = VCoachLightGreen,
+                shape = RoundedCornerShape(10.dp),
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = "감지된 성분",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = VCoachTextGray,
+        )
+
+        Text(
+            text = "${detectedIngredientCount}개",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = VCoachGreen,
+        )
     }
 }
 
