@@ -29,6 +29,14 @@ fun DetectorScreenSet(
         is DetectorUiState.Success -> uiState.setListItems
         else -> emptyList()
     }
+    val emissionAmount = when (uiState) {
+        is DetectorUiState.Success -> uiState.emissionAmount
+        else -> 0
+    }
+    val emissionItems = when (uiState) {
+        is DetectorUiState.Success -> uiState.emissionItems
+        else -> emptyList()
+    }
 
     val userPreferences = UserPreferences(LocalContext.current)
     val userType = userPreferences.getUserType()
@@ -50,7 +58,11 @@ fun DetectorScreenSet(
     }
 
     when (selectedTab) {
-        0 -> IngredientAnalysisContent(detectedIngredientItems = detectedIngredientItems)
+        0 -> IngredientAnalysisContent(
+            detectedIngredientItems = detectedIngredientItems,
+            emissionAmount = emissionAmount,
+            emissionItems = emissionItems,
+        )
         1 -> RestrictedIngredientContent(
             userType = userType,
             hasRestrictedIngredient = hasRestrictedIngredient,

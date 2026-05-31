@@ -14,6 +14,7 @@ import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.data.remote.IngredientRequest
 import com.example.vcoach.data.remote.RetrofitClient
 import com.example.vcoach.data.remote.SetListData
+import com.example.vcoach.domain.usecase.EmissionUseCase
 import com.example.vcoach.domain.usecase.GetRestrictedIngredientsUseCase
 import com.example.vcoach.ui.photo.SelectedPhoto
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,7 @@ class DetectorViewModel(
     private val foodDao = AppDatabase.getInstance(application).foodDao()
     private val userPreferences = UserPreferences(application)
     private val getRestrictedIngredientsUseCase = GetRestrictedIngredientsUseCase()
+    private val emissionUseCase = EmissionUseCase()
 
     fun setSelectedPhoto(photo: SelectedPhoto) {
         currentFoodId = null
@@ -53,6 +55,8 @@ class DetectorViewModel(
     fun setDetectedIngredients(ingredients: List<String>) {
         _uiState.value = DetectorUiState.Success(
             detectedIngredients = ingredients,
+            emissionAmount = emissionUseCase(ingredients),
+            emissionItems = emissionUseCase.getItems(ingredients),
             isAdditionalAnalysisComplete = true,
         )
     }
@@ -74,6 +78,8 @@ class DetectorViewModel(
                 )
                 _uiState.value = DetectorUiState.Success(
                     detectedIngredients = food.includedIngredients,
+                    emissionAmount = food.emissionAmount,
+                    emissionItems = emissionUseCase.getItems(food.includedIngredients),
                     setListItems = food.alternativeFoods.mapIndexed { index, foodName ->
                         SetListData(
                             name = foodName,
@@ -97,6 +103,7 @@ class DetectorViewModel(
                 withContext(Dispatchers.IO) {
                     foodDao.getFoodById(foodId)?.let { food ->
                         foodDao.deleteFood(food)
+                        deleteInternalImageFile(food.imagePath)
                     }
                 }
             }.onSuccess {
@@ -165,19 +172,25 @@ class DetectorViewModel(
             runCatching {
                 val bitmap = photo.toBitmap()
                     ?: error("Selected photo could not be loaded.")
-                val foodName = detectFoodName(bitmap)
-                val detectedIngredients = foodDetector.detect(bitmap).map { result ->
+                val analysisBitmap = bitmap.toAnalysisBitmap()
+                val foodName = detectFoodName(analysisBitmap)
+                val detectedIngredients = foodDetector.detect(analysisBitmap).map { result ->
                     result.ingredientName
                 }
+                val emissionAmount = emissionUseCase(detectedIngredients)
+                val emissionItems = emissionUseCase.getItems(detectedIngredients)
 
                 _uiState.value = DetectorUiState.Success(
                     detectedIngredients = detectedIngredients,
+                    emissionAmount = emissionAmount,
+                    emissionItems = emissionItems,
                     isAdditionalAnalysisComplete = true,
                 )
                 val savedFoodId = saveFoodAnalysis(
                     photo = photo,
                     foodName = foodName,
                     detectedIngredients = detectedIngredients,
+                    emissionAmount = emissionAmount,
                 )
                 fetchAlternativeFoodsAndUpdateInBackground(
                     savedFoodId = savedFoodId,
@@ -218,6 +231,7 @@ class DetectorViewModel(
         photo: SelectedPhoto,
         foodName: String,
         detectedIngredients: List<String>,
+        emissionAmount: Int,
     ): Int? {
         val imagePath = photo.imagePath ?: return null
 
@@ -227,7 +241,7 @@ class DetectorViewModel(
                     foodName = foodName,
                     imagePath = imagePath,
                     includedIngredients = detectedIngredients,
-                    emissionAmount = 0,
+                    emissionAmount = emissionAmount,
                     alternativeFoods = emptyList(),
                     alternativeFoodDescriptions = emptyList(),
                     data = emptyList(),
@@ -270,8 +284,36 @@ class DetectorViewModel(
         }
     }
 
+    private fun deleteInternalImageFile(imagePath: String) {
+        runCatching {
+            val filesDir = getApplication<Application>().filesDir.canonicalFile
+            val imageFile = File(imagePath).canonicalFile
+            if (!imageFile.toPath().startsWith(filesDir.toPath())) return
+
+            if (imageFile.isFile) {
+                imageFile.delete()
+            }
+        }.onFailure { throwable ->
+            Log.w(TAG, "Failed to delete image file: path=$imagePath", throwable)
+        }
+    }
+
+    private suspend fun Bitmap.toAnalysisBitmap(): Bitmap = withContext(Dispatchers.Default) {
+        if (width == ANALYSIS_IMAGE_SIZE && height == ANALYSIS_IMAGE_SIZE) {
+            this@toAnalysisBitmap
+        } else {
+            Bitmap.createScaledBitmap(
+                this@toAnalysisBitmap,
+                ANALYSIS_IMAGE_SIZE,
+                ANALYSIS_IMAGE_SIZE,
+                true,
+            )
+        }
+    }
+
     private companion object {
         const val TAG = "DetectorViewModel"
+        const val ANALYSIS_IMAGE_SIZE = 512
         const val DEFAULT_FOOD_NAME = "식품"
     }
 }

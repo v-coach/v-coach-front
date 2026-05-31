@@ -1,6 +1,7 @@
 package com.example.vcoach.ui.detector
 
 import com.example.vcoach.data.remote.SetListData
+import com.example.vcoach.domain.usecase.EmissionItem
 
 sealed interface DetectorUiState {
     data object Idle : DetectorUiState
@@ -10,6 +11,8 @@ sealed interface DetectorUiState {
 
     data class Success(
         val detectedIngredients: List<String>,
+        val emissionAmount: Int = 0,
+        val emissionItems: List<EmissionItem> = emptyList(),
         val setListItems: List<SetListData> = emptyList(),
         val isAdditionalAnalysisComplete: Boolean = false,
     ) : DetectorUiState

@@ -20,13 +20,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vcoach.domain.usecase.EmissionItem
 import com.example.vcoach.ui.theme.VCoachGreen
 import com.example.vcoach.ui.theme.VCoachLightGreen
 import com.example.vcoach.ui.theme.VCoachTextGray
+import java.util.Locale
 
 @Composable
 fun IngredientAnalysisContent(
     detectedIngredientItems: List<String>,
+    emissionAmount: Int,
+    emissionItems: List<EmissionItem>,
 ) {
     Column(
         modifier = Modifier
@@ -41,6 +45,12 @@ fun IngredientAnalysisContent(
         ) {
             IngredientResultSummary(detectedIngredientItems = detectedIngredientItems)
         }
+
+        EmissionResultCard(
+            detectedIngredientItems = detectedIngredientItems,
+            emissionAmount = emissionAmount,
+            emissionItems = emissionItems,
+        )
     }
 }
 
@@ -146,4 +156,91 @@ private fun EmptyIngredientResult() {
         fontWeight = FontWeight.Bold,
         color = VCoachTextGray,
     )
+}
+
+@Composable
+private fun EmissionResultCard(
+    detectedIngredientItems: List<String>,
+    emissionAmount: Int,
+    emissionItems: List<EmissionItem>,
+) {
+    val formattedEmission = String.format(Locale.US, "%,d", emissionAmount)
+
+    AnalysisResultCard(
+        text = "배출량",
+        textColor = VCoachGreen,
+    ) {
+        if (detectedIngredientItems.isNotEmpty()) {
+            Text(
+                text = "$formattedEmission g CO2e",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "재료별 100g 기준",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = VCoachTextGray,
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            EmissionItemList(emissionItems = emissionItems)
+        } else {
+            Text(
+                text = "0 g CO2e",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmissionItemList(
+    emissionItems: List<EmissionItem>,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        emissionItems.forEach { emissionItem ->
+            EmissionItemRow(emissionItem = emissionItem)
+        }
+    }
+}
+
+@Composable
+private fun EmissionItemRow(
+    emissionItem: EmissionItem,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = VCoachLightGreen,
+                shape = RoundedCornerShape(10.dp),
+            )
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = emissionItem.ingredientName,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.Black,
+        )
+
+        Text(
+            text = "${String.format(Locale.US, "%,d", emissionItem.emissionAmount)} g",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = VCoachGreen,
+        )
+    }
 }
