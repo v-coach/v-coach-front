@@ -1,13 +1,16 @@
 package com.example.vcoach.ui.detector.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vcoach.data.remote.SetListData
 import com.example.vcoach.ui.theme.VCoachGreen
+import com.example.vcoach.ui.theme.VCoachLightGreen
 import com.example.vcoach.ui.theme.VCoachTextGray
 
 @Composable
@@ -49,6 +53,8 @@ fun RestrictedIngredientContent(
 
         if (setListItems.isNotEmpty()) {
             AlternativeFoodCard(setListItems = setListItems)
+        } else if (hasRestrictedIngredient) {
+            AlternativeFoodPendingCard()
         }
     }
 }
@@ -59,6 +65,13 @@ private fun RestrictedIngredientSummary(
     hasRestrictedIngredient: Boolean,
     restrictedIngredientItems: List<String>,
 ) {
+    RestrictedOverview(
+        userType = userType,
+        restrictedIngredientCount = restrictedIngredientItems.size,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
     if (hasRestrictedIngredient) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -85,6 +98,59 @@ private fun RestrictedIngredientSummary(
             fontWeight = FontWeight.Bold,
             color = VCoachTextGray,
         )
+    }
+}
+
+@Composable
+private fun RestrictedOverview(
+    userType: String,
+    restrictedIngredientCount: Int,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = VCoachLightGreen,
+                shape = RoundedCornerShape(10.dp),
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = "사용자 유형",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = VCoachTextGray,
+            )
+            Text(
+                text = "${userType} 단계",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = "감지",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = VCoachTextGray,
+            )
+            Text(
+                text = "${restrictedIngredientCount}개",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = VCoachGreen,
+            )
+        }
     }
 }
 
@@ -118,6 +184,21 @@ private fun AlternativeFoodCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AlternativeFoodPendingCard() {
+    AnalysisResultCard(
+        text = "대체 식품 추천",
+        textColor = VCoachGreen,
+    ) {
+        Text(
+            text = "불러오는 중입니다",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+        )
     }
 }
 

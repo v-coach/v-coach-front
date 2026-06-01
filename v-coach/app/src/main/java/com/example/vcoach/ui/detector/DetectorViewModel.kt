@@ -7,13 +7,16 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vcoach.ai.TfliteFoodNameClassifier
 import com.example.vcoach.ai.TfliteFoodDetector
 import com.example.vcoach.data.local.AppDatabase
 import com.example.vcoach.data.local.FoodEntity
 import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.data.remote.IngredientRequest
+import com.example.vcoach.data.remote.NutritionRequest
 import com.example.vcoach.data.remote.RetrofitClient
 import com.example.vcoach.data.remote.SetListData
+import com.example.vcoach.domain.usecase.EmissionUseCase
 import com.example.vcoach.domain.usecase.GetRestrictedIngredientsUseCase
 import com.example.vcoach.ui.photo.SelectedPhoto
 import kotlinx.coroutines.Dispatchers
@@ -39,9 +42,11 @@ class DetectorViewModel(
     private var currentFoodId: Int? = null
 
     private val foodDetector = TfliteFoodDetector(application)
+    private val foodNameClassifier = TfliteFoodNameClassifier(application)
     private val foodDao = AppDatabase.getInstance(application).foodDao()
     private val userPreferences = UserPreferences(application)
     private val getRestrictedIngredientsUseCase = GetRestrictedIngredientsUseCase()
+    private val emissionUseCase = EmissionUseCase()
 
     fun setSelectedPhoto(photo: SelectedPhoto) {
         currentFoodId = null
@@ -52,7 +57,10 @@ class DetectorViewModel(
 
     fun setDetectedIngredients(ingredients: List<String>) {
         _uiState.value = DetectorUiState.Success(
+            foodName = DEFAULT_FOOD_NAME,
             detectedIngredients = ingredients,
+            emissionAmount = emissionUseCase(ingredients),
+            emissionItems = emissionUseCase.getItems(ingredients),
             isAdditionalAnalysisComplete = true,
         )
     }
@@ -73,7 +81,11 @@ class DetectorViewModel(
                     imagePath = food.imagePath,
                 )
                 _uiState.value = DetectorUiState.Success(
+                    foodName = food.foodName,
                     detectedIngredients = food.includedIngredients,
+                    emissionAmount = food.emissionAmount,
+                    emissionItems = emissionUseCase.getItems(food.includedIngredients),
+                    nutritionItems = food.data,
                     setListItems = food.alternativeFoods.mapIndexed { index, foodName ->
                         SetListData(
                             name = foodName,
@@ -97,6 +109,7 @@ class DetectorViewModel(
                 withContext(Dispatchers.IO) {
                     foodDao.getFoodById(foodId)?.let { food ->
                         foodDao.deleteFood(food)
+                        deleteInternalImageFile(food.imagePath)
                     }
                 }
             }.onSuccess {
@@ -120,7 +133,10 @@ class DetectorViewModel(
         Log.d(TAG, "Request alternative foods: ingredient=$requestIngredientText")
         return runCatching {
             RetrofitClient.foodApiService.getAlternativeFoods(
-                IngredientRequest(requestIngredientText),
+                IngredientRequest(
+                    foodName = getCurrentFoodName(),
+                    ingredient = requestIngredientText,
+                ),
             )
         }.onSuccess { setListItems ->
             Log.d(TAG, "Alternative foods response size=${setListItems.size}, items=$setListItems")
@@ -130,6 +146,21 @@ class DetectorViewModel(
             }
         }.onFailure { throwable ->
             Log.e(TAG, "Failed to get alternative foods: ingredient=$requestIngredientText", throwable)
+        }.getOrDefault(emptyList())
+    }
+
+    private suspend fun getNutritionItems(foodName: String): List<String> {
+        if (foodName.isBlank()) return emptyList()
+
+        Log.d(TAG, "Request nutrition: foodName=$foodName")
+        return runCatching {
+            RetrofitClient.foodApiService.getNutritionItems(
+                NutritionRequest(foodName),
+            )
+        }.onSuccess { nutritionItems ->
+            Log.d(TAG, "Nutrition response size=${nutritionItems.size}, items=$nutritionItems")
+        }.onFailure { throwable ->
+            Log.e(TAG, "Failed to get nutrition: foodName=$foodName", throwable)
         }.getOrDefault(emptyList())
     }
 
@@ -153,8 +184,16 @@ class DetectorViewModel(
         _uiState.value = DetectorUiState.Error(message)
     }
 
+    private fun getCurrentFoodName(): String {
+        return (_uiState.value as? DetectorUiState.Success)
+            ?.foodName
+            ?.takeIf { foodName -> foodName.isNotBlank() }
+            ?: DEFAULT_FOOD_NAME
+    }
+
     override fun onCleared() {
         foodDetector.close()
+        foodNameClassifier.close()
         super.onCleared()
     }
 
@@ -165,23 +204,35 @@ class DetectorViewModel(
             runCatching {
                 val bitmap = photo.toBitmap()
                     ?: error("Selected photo could not be loaded.")
-                val foodName = detectFoodName(bitmap)
-                val detectedIngredients = foodDetector.detect(bitmap).map { result ->
+                val foodNameBitmap = bitmap.toFoodNameBitmap()
+                val analysisBitmap = bitmap.toAnalysisBitmap()
+                val foodName = detectFoodName(foodNameBitmap)
+                val detectedIngredients = foodDetector.detect(analysisBitmap).map { result ->
                     result.ingredientName
                 }
+                val emissionAmount = emissionUseCase(detectedIngredients)
+                val emissionItems = emissionUseCase.getItems(detectedIngredients)
 
                 _uiState.value = DetectorUiState.Success(
+                    foodName = foodName,
                     detectedIngredients = detectedIngredients,
+                    emissionAmount = emissionAmount,
+                    emissionItems = emissionItems,
                     isAdditionalAnalysisComplete = true,
                 )
                 val savedFoodId = saveFoodAnalysis(
                     photo = photo,
                     foodName = foodName,
                     detectedIngredients = detectedIngredients,
+                    emissionAmount = emissionAmount,
                 )
                 fetchAlternativeFoodsAndUpdateInBackground(
                     savedFoodId = savedFoodId,
                     detectedIngredients = detectedIngredients,
+                )
+                fetchNutritionAndUpdateInBackground(
+                    savedFoodId = savedFoodId,
+                    foodName = foodName,
                 )
             }.onFailure { throwable ->
                 Log.e(TAG, "Failed to analyze selected photo", throwable)
@@ -214,10 +265,35 @@ class DetectorViewModel(
         }
     }
 
+    private fun fetchNutritionAndUpdateInBackground(
+        savedFoodId: Int?,
+        foodName: String,
+    ) {
+        viewModelScope.launch {
+            val nutritionItems = getNutritionItems(foodName)
+            val currentState = _uiState.value as? DetectorUiState.Success ?: return@launch
+            if (currentState.foodName != foodName) return@launch
+
+            if (nutritionItems.isNotEmpty()) {
+                _uiState.value = currentState.copy(
+                    nutritionItems = nutritionItems,
+                )
+            }
+
+            if (savedFoodId != null && nutritionItems.isNotEmpty()) {
+                updateNutritionItems(
+                    savedFoodId = savedFoodId,
+                    nutritionItems = nutritionItems,
+                )
+            }
+        }
+    }
+
     private suspend fun saveFoodAnalysis(
         photo: SelectedPhoto,
         foodName: String,
         detectedIngredients: List<String>,
+        emissionAmount: Int,
     ): Int? {
         val imagePath = photo.imagePath ?: return null
 
@@ -227,7 +303,7 @@ class DetectorViewModel(
                     foodName = foodName,
                     imagePath = imagePath,
                     includedIngredients = detectedIngredients,
-                    emissionAmount = 0,
+                    emissionAmount = emissionAmount,
                     alternativeFoods = emptyList(),
                     alternativeFoodDescriptions = emptyList(),
                     data = emptyList(),
@@ -254,12 +330,22 @@ class DetectorViewModel(
         }
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private suspend fun detectFoodName(bitmap: Bitmap): String {
-        return withContext(Dispatchers.Default) {
-            // Food-101 model integration point.
-            DEFAULT_FOOD_NAME
+    private suspend fun updateNutritionItems(
+        savedFoodId: Int,
+        nutritionItems: List<String>,
+    ) {
+        withContext(Dispatchers.IO) {
+            val savedFood = foodDao.getFoodById(savedFoodId) ?: return@withContext
+            foodDao.updateFood(
+                savedFood.copy(
+                    data = nutritionItems,
+                ),
+            )
         }
+    }
+
+    private suspend fun detectFoodName(bitmap: Bitmap): String {
+        return foodNameClassifier.classify(bitmap).foodName
     }
 
     private suspend fun SelectedPhoto.toBitmap(): Bitmap? = withContext(Dispatchers.IO) {
@@ -270,8 +356,50 @@ class DetectorViewModel(
         }
     }
 
+    private fun deleteInternalImageFile(imagePath: String) {
+        runCatching {
+            val filesDir = getApplication<Application>().filesDir.canonicalFile
+            val imageFile = File(imagePath).canonicalFile
+            if (!imageFile.toPath().startsWith(filesDir.toPath())) return
+
+            if (imageFile.isFile) {
+                imageFile.delete()
+            }
+        }.onFailure { throwable ->
+            Log.w(TAG, "Failed to delete image file: path=$imagePath", throwable)
+        }
+    }
+
+    private suspend fun Bitmap.toAnalysisBitmap(): Bitmap = withContext(Dispatchers.Default) {
+        if (width == ANALYSIS_IMAGE_SIZE && height == ANALYSIS_IMAGE_SIZE) {
+            this@toAnalysisBitmap
+        } else {
+            Bitmap.createScaledBitmap(
+                this@toAnalysisBitmap,
+                ANALYSIS_IMAGE_SIZE,
+                ANALYSIS_IMAGE_SIZE,
+                true,
+            )
+        }
+    }
+
+    private suspend fun Bitmap.toFoodNameBitmap(): Bitmap = withContext(Dispatchers.Default) {
+        if (width == FOOD_NAME_IMAGE_SIZE && height == FOOD_NAME_IMAGE_SIZE) {
+            this@toFoodNameBitmap
+        } else {
+            Bitmap.createScaledBitmap(
+                this@toFoodNameBitmap,
+                FOOD_NAME_IMAGE_SIZE,
+                FOOD_NAME_IMAGE_SIZE,
+                true,
+            )
+        }
+    }
+
     private companion object {
         const val TAG = "DetectorViewModel"
+        const val ANALYSIS_IMAGE_SIZE = 512
+        const val FOOD_NAME_IMAGE_SIZE = 224
         const val DEFAULT_FOOD_NAME = "식품"
     }
 }

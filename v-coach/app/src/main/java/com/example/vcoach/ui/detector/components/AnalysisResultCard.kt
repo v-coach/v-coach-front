@@ -1,7 +1,7 @@
 package com.example.vcoach.ui.detector.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vcoach.ui.theme.VCoachBorderGray
+import com.example.vcoach.ui.theme.VCoachLightGreen
 
 @Composable
 fun AnalysisResultCard(
@@ -30,16 +31,16 @@ fun AnalysisResultCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White,
         ),
         border = BorderStroke(
-            width = 2.dp,
+            width = 1.dp,
             color = VCoachBorderGray,
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
+            defaultElevation = 2.dp,
         ),
     ) {
         Column(
@@ -54,12 +55,11 @@ fun AnalysisResultCard(
             ) {
                 Row(
                     modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = textColor,
+                        .background(
+                            color = VCoachLightGreen,
                             shape = RoundedCornerShape(20.dp),
                         )
-                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                        .padding(horizontal = 13.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {

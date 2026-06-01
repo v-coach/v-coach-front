@@ -20,13 +20,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vcoach.domain.usecase.EmissionItem
 import com.example.vcoach.ui.theme.VCoachGreen
 import com.example.vcoach.ui.theme.VCoachLightGreen
 import com.example.vcoach.ui.theme.VCoachTextGray
+import java.util.Locale
 
 @Composable
 fun IngredientAnalysisContent(
+    foodName: String,
     detectedIngredientItems: List<String>,
+    emissionAmount: Int,
+    emissionItems: List<EmissionItem>,
 ) {
     Column(
         modifier = Modifier
@@ -39,15 +44,41 @@ fun IngredientAnalysisContent(
             text = "AI 분석 완료",
             textColor = VCoachGreen,
         ) {
-            IngredientResultSummary(detectedIngredientItems = detectedIngredientItems)
+            IngredientResultSummary(
+                foodName = foodName,
+                detectedIngredientItems = detectedIngredientItems,
+            )
         }
+
+        EmissionResultCard(
+            detectedIngredientItems = detectedIngredientItems,
+            emissionAmount = emissionAmount,
+            emissionItems = emissionItems,
+        )
     }
 }
 
 @Composable
 private fun IngredientResultSummary(
+    foodName: String,
     detectedIngredientItems: List<String>,
 ) {
+    if (foodName.isNotBlank()) {
+        Text(
+            text = "${foodName}입니다",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+            lineHeight = 34.sp,
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+    }
+
+    AnalysisCountSummary(detectedIngredientCount = detectedIngredientItems.size)
+
+    Spacer(modifier = Modifier.height(16.dp))
+
     if (detectedIngredientItems.isNotEmpty()) {
         DetectedIngredient(detectedIngredientItems = detectedIngredientItems)
 
@@ -64,6 +95,37 @@ private fun IngredientResultSummary(
         )
     } else {
         EmptyIngredientResult()
+    }
+}
+
+@Composable
+private fun AnalysisCountSummary(
+    detectedIngredientCount: Int,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = VCoachLightGreen,
+                shape = RoundedCornerShape(10.dp),
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = "감지된 성분",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = VCoachTextGray,
+        )
+
+        Text(
+            text = "${detectedIngredientCount}개",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = VCoachGreen,
+        )
     }
 }
 
@@ -146,4 +208,91 @@ private fun EmptyIngredientResult() {
         fontWeight = FontWeight.Bold,
         color = VCoachTextGray,
     )
+}
+
+@Composable
+private fun EmissionResultCard(
+    detectedIngredientItems: List<String>,
+    emissionAmount: Int,
+    emissionItems: List<EmissionItem>,
+) {
+    val formattedEmission = String.format(Locale.US, "%,d", emissionAmount)
+
+    AnalysisResultCard(
+        text = "배출량",
+        textColor = VCoachGreen,
+    ) {
+        if (detectedIngredientItems.isNotEmpty()) {
+            Text(
+                text = "$formattedEmission g CO2e",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "재료별 100g 기준",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = VCoachTextGray,
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            EmissionItemList(emissionItems = emissionItems)
+        } else {
+            Text(
+                text = "0 g CO2e",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmissionItemList(
+    emissionItems: List<EmissionItem>,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        emissionItems.forEach { emissionItem ->
+            EmissionItemRow(emissionItem = emissionItem)
+        }
+    }
+}
+
+@Composable
+private fun EmissionItemRow(
+    emissionItem: EmissionItem,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = VCoachLightGreen,
+                shape = RoundedCornerShape(10.dp),
+            )
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = emissionItem.ingredientName,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.Black,
+        )
+
+        Text(
+            text = "${String.format(Locale.US, "%,d", emissionItem.emissionAmount)} g",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = VCoachGreen,
+        )
+    }
 }

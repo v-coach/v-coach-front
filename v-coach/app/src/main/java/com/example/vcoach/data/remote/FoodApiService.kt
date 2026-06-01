@@ -8,4 +8,9 @@ interface FoodApiService {
     suspend fun getAlternativeFoods(
         @Body request: IngredientRequest,
     ): List<SetListData>
+
+    @POST("alternative-foods/nutrition")
+    suspend fun getNutritionItems(
+        @Body request: NutritionRequest,
+    ): List<String>
 }

@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -44,6 +46,9 @@ import com.example.vcoach.ui.components.VCoachPrimaryButton
 import com.example.vcoach.ui.components.VCoachTopBar
 import com.example.vcoach.ui.photo.SelectedPhoto
 import com.example.vcoach.ui.selectitem.components.FoodItemCard
+import com.example.vcoach.ui.theme.VCoachGreen
+import com.example.vcoach.ui.theme.VCoachLightGreen
+import com.example.vcoach.ui.theme.VCoachTextGray
 import java.io.File
 
 @Composable
@@ -115,6 +120,10 @@ fun SelectItemScreen(
                     .weight(1f)
                     .padding(horizontal = 28.dp, vertical = 24.dp),
             ) {
+                FoodListHeader(itemCount = foodItems.size)
+
+                Spacer(modifier = Modifier.height(18.dp))
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -139,6 +148,40 @@ fun SelectItemScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FoodListHeader(
+    itemCount: Int,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "분석 기록",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+            )
+            Text(
+                text = "최근 분석한 식품을 다시 확인할 수 있습니다",
+                fontSize = 13.sp,
+                color = VCoachTextGray,
+            )
+        }
+
+        Text(
+            text = "${itemCount}개",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = VCoachGreen,
+        )
     }
 }
 
@@ -242,10 +285,66 @@ private fun EmptyFoodItemContent(
 
         Spacer(modifier = Modifier.height(28.dp))
 
+        EmptyGuidePanel()
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         VCoachPrimaryButton(
             text = "사진 추가하기",
             onClick = onAddPhotoClick,
             modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun EmptyGuidePanel() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = VCoachLightGreen,
+                shape = RoundedCornerShape(12.dp),
+            )
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        EmptyGuideRow(
+            title = "식품명",
+            description = "사진 속 식품을 예측합니다",
+        )
+        EmptyGuideRow(
+            title = "성분",
+            description = "제한 성분 포함 여부를 봅니다",
+        )
+        EmptyGuideRow(
+            title = "기록",
+            description = "분석한 결과를 저장합니다",
+        )
+    }
+}
+
+@Composable
+private fun EmptyGuideRow(
+    title: String,
+    description: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+        )
+
+        Text(
+            text = description,
+            fontSize = 13.sp,
+            color = VCoachTextGray,
         )
     }
 }
