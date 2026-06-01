@@ -3,6 +3,8 @@ package com.example.vcoach.ui.detector
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -206,7 +208,16 @@ class DetectorViewModel(
                     ?: error("Selected photo could not be loaded.")
                 val foodNameBitmap = bitmap.toFoodNameBitmap()
                 val foodName = detectFoodName(foodNameBitmap)
-                val detectedIngredients = foodDetector.detect(bitmap).map { result ->
+                val detectionResults = foodDetector.detect(bitmap)
+                Log.d(
+                    TAG,
+                    "Detected ingredients with confidence=${
+                        detectionResults.joinToString { result ->
+                            "${result.ingredientName}=${"%.3f".format(result.confidence)}"
+                        }
+                    }",
+                )
+                val detectedIngredients = detectionResults.map { result ->
                     result.ingredientName
                 }
                 val emissionAmount = emissionUseCase(detectedIngredients)
@@ -349,10 +360,59 @@ class DetectorViewModel(
 
     private suspend fun SelectedPhoto.toBitmap(): Bitmap? = withContext(Dispatchers.IO) {
         bitmap ?: uri?.let { selectedUri ->
-            getApplication<Application>().contentResolver
+            val decodedBitmap = getApplication<Application>().contentResolver
                 .openInputStream(selectedUri)
                 ?.use(BitmapFactory::decodeStream)
+            decodedBitmap?.rotateByExif(
+                uri = selectedUri,
+                imagePath = imagePath,
+            )
         }
+    }
+
+    private fun Bitmap.rotateByExif(
+        uri: Uri,
+        imagePath: String?,
+    ): Bitmap {
+        val orientation = readExifOrientation(uri = uri, imagePath = imagePath)
+        val degrees = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+        if (degrees == 0f) return this
+
+        val matrix = Matrix().apply {
+            postRotate(degrees)
+        }
+        return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
+            .also {
+                Log.d(TAG, "Applied EXIF rotation: degrees=$degrees")
+            }
+    }
+
+    private fun readExifOrientation(
+        uri: Uri,
+        imagePath: String?,
+    ): Int {
+        return runCatching {
+            val imageFile = imagePath?.let(::File)
+            val exif = if (imageFile != null && imageFile.exists()) {
+                ExifInterface(imageFile.absolutePath)
+            } else {
+                getApplication<Application>().contentResolver
+                    .openInputStream(uri)
+                    ?.use(::ExifInterface)
+                    ?: return@runCatching ExifInterface.ORIENTATION_NORMAL
+            }
+            exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL,
+            )
+        }.onFailure { throwable ->
+            Log.w(TAG, "Failed to read EXIF orientation: uri=$uri, imagePath=$imagePath", throwable)
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
     }
 
     private fun deleteInternalImageFile(imagePath: String) {

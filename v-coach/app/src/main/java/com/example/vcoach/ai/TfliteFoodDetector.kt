@@ -16,6 +16,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import kotlin.math.ceil
+import kotlin.math.exp
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
@@ -46,12 +49,27 @@ class TfliteFoodDetector(
             Log.w(TAG, "YOLO detection output was not found. shapes=${outputShapes.joinToString { it.contentToString() }}")
             return@withContext emptyList()
         }
+        val maskPrototypeIndex = findMaskPrototypeOutputIndex(
+            outputShapes = outputShapes,
+            detectionIndex = detectionIndex,
+        )
 
-        parseDetections(
+        val parsedDetections = parseDetections(
             output = outputs.getValue(detectionIndex),
             shape = outputShapes[detectionIndex],
         )
+        Log.d(TAG, "YOLO parsed candidates=${parsedDetections.size}, maskPrototypeIndex=$maskPrototypeIndex")
+
+        val selectedDetections = parsedDetections
             .nonMaxSuppression()
+            .filterByMaskPrototype(
+                maskPrototype = maskPrototypeIndex
+                    ?.let { index -> outputs.getValue(index) as? Array<Array<Array<FloatArray>>> },
+                maskPrototypeShape = maskPrototypeIndex
+                    ?.let { index -> outputShapes[index] },
+            )
+
+        selectedDetections
             .groupBy { detection -> detection.classId }
             .mapNotNull { (classId, detections) ->
                 val ingredient = IngredientClass.entries.getOrNull(classId) ?: return@mapNotNull null
@@ -61,6 +79,16 @@ class TfliteFoodDetector(
                 )
             }
             .sortedByDescending { result -> result.confidence }
+            .also { results ->
+                Log.d(
+                    TAG,
+                    "YOLO final ingredients=${
+                        results.joinToString { result ->
+                            "${result.ingredientName}=${"%.3f".format(result.confidence)}"
+                        }
+                    }",
+                )
+            }
     }
 
     override fun close() {
@@ -107,6 +135,18 @@ class TfliteFoodDetector(
             4 -> Array(shape[0]) { Array(shape[1]) { Array(shape[2]) { FloatArray(shape[3]) } } }
             else -> error("Unsupported TFLite output shape: ${shape.contentToString()}")
         }
+    }
+
+    private fun findMaskPrototypeOutputIndex(
+        outputShapes: List<IntArray>,
+        detectionIndex: Int,
+    ): Int? {
+        return outputShapes.indices.indexOfFirst { index ->
+            val shape = outputShapes[index]
+            index != detectionIndex &&
+                shape.size == MASK_PROTOTYPE_OUTPUT_RANK &&
+                shape.drop(1).any { dimension -> dimension == MASK_COEFFICIENT_COUNT }
+        }.takeIf { index -> index != NOT_FOUND }
     }
 
     private fun Bitmap.toModelInput(): ByteBuffer {
@@ -157,6 +197,7 @@ class TfliteFoodDetector(
         val channelsFirst = shape[1] <= MAX_DETECTION_CHANNEL_COUNT && shape[2] > shape[1]
         val channelCount = if (channelsFirst) shape[1] else shape[2]
         val anchorCount = if (channelsFirst) shape[2] else shape[1]
+        val maskCoefficientCount = channelCount - BOX_CHANNEL_COUNT - IngredientClass.entries.size
         val detections = mutableListOf<YoloDetection>()
 
         if (channelCount < BOX_CHANNEL_COUNT + IngredientClass.entries.size) return emptyList()
@@ -177,7 +218,8 @@ class TfliteFoodDetector(
                 }
             }
 
-            if (bestScore < CONFIDENCE_THRESHOLD) continue
+            val ingredient = IngredientClass.entries[bestClassId]
+            if (bestScore < ingredient.confidenceThreshold) continue
 
             val centerX = tensor.valueAt(anchor, X_CHANNEL, channelsFirst).toInputPixels()
             val centerY = tensor.valueAt(anchor, Y_CHANNEL, channelsFirst).toInputPixels()
@@ -193,11 +235,25 @@ class TfliteFoodDetector(
                 (centerY + height / 2f).coerceIn(0f, INPUT_SIZE_FLOAT),
             )
             if (box.width() < MIN_BOX_SIZE || box.height() < MIN_BOX_SIZE) continue
+            if (box.areaRatio() < ingredient.minBoxAreaRatio) continue
+
+            val maskCoefficients = if (maskCoefficientCount >= MASK_COEFFICIENT_COUNT) {
+                FloatArray(MASK_COEFFICIENT_COUNT) { index ->
+                    tensor.valueAt(
+                        anchor = anchor,
+                        channel = BOX_CHANNEL_COUNT + IngredientClass.entries.size + index,
+                        channelsFirst = channelsFirst,
+                    )
+                }
+            } else {
+                FloatArray(0)
+            }
 
             detections += YoloDetection(
                 classId = bestClassId,
                 score = bestScore,
                 box = box,
+                maskCoefficients = maskCoefficients,
             )
         }
 
@@ -230,12 +286,15 @@ class TfliteFoodDetector(
         groupBy { detection -> detection.classId }.forEach { (_, classDetections) ->
             val candidates = classDetections.sortedByDescending { detection -> detection.score }
             val suppressed = BooleanArray(candidates.size)
+            var selectedForClass = 0
 
             for (index in candidates.indices) {
                 if (suppressed[index]) continue
 
                 val current = candidates[index]
                 selected += current
+                selectedForClass += 1
+                if (selectedForClass >= MAX_DETECTIONS_PER_CLASS) break
 
                 for (otherIndex in index + 1 until candidates.size) {
                     if (suppressed[otherIndex]) continue
@@ -247,6 +306,89 @@ class TfliteFoodDetector(
         }
 
         return selected
+    }
+
+    private fun List<YoloDetection>.filterByMaskPrototype(
+        maskPrototype: Array<Array<Array<FloatArray>>>?,
+        maskPrototypeShape: IntArray?,
+    ): List<YoloDetection> {
+        if (maskPrototype == null || maskPrototypeShape == null) return this
+
+        return filter { detection ->
+            if (detection.maskCoefficients.size < MASK_COEFFICIENT_COUNT) return@filter true
+
+            val ingredient = IngredientClass.entries[detection.classId]
+            val maskAreaRatio = detection.maskAreaRatio(
+                maskPrototype = maskPrototype,
+                maskPrototypeShape = maskPrototypeShape,
+            )
+            val keep = maskAreaRatio >= ingredient.minMaskAreaRatio
+            if (!keep) {
+                Log.d(
+                    TAG,
+                    "Drop ${ingredient.displayName}: score=${"%.3f".format(detection.score)}, maskArea=${"%.4f".format(maskAreaRatio)}",
+                )
+            }
+            keep
+        }
+    }
+
+    private fun YoloDetection.maskAreaRatio(
+        maskPrototype: Array<Array<Array<FloatArray>>>,
+        maskPrototypeShape: IntArray,
+    ): Float {
+        val channelsFirst = maskPrototypeShape[1] == MASK_COEFFICIENT_COUNT
+        val prototypeHeight = if (channelsFirst) maskPrototypeShape[2] else maskPrototypeShape[1]
+        val prototypeWidth = if (channelsFirst) maskPrototypeShape[3] else maskPrototypeShape[2]
+        val xStart = floor(box.left / INPUT_SIZE_FLOAT * prototypeWidth).toInt().coerceIn(0, prototypeWidth - 1)
+        val yStart = floor(box.top / INPUT_SIZE_FLOAT * prototypeHeight).toInt().coerceIn(0, prototypeHeight - 1)
+        val xEnd = ceil(box.right / INPUT_SIZE_FLOAT * prototypeWidth).toInt().coerceIn(xStart + 1, prototypeWidth)
+        val yEnd = ceil(box.bottom / INPUT_SIZE_FLOAT * prototypeHeight).toInt().coerceIn(yStart + 1, prototypeHeight)
+        var visiblePixelCount = 0
+        var sampledPixelCount = 0
+
+        for (y in yStart until yEnd step MASK_SAMPLE_STEP) {
+            for (x in xStart until xEnd step MASK_SAMPLE_STEP) {
+                var logit = 0f
+                for (channel in 0 until MASK_COEFFICIENT_COUNT) {
+                    logit += maskCoefficients[channel] * maskPrototype.valueAt(
+                        y = y,
+                        x = x,
+                        channel = channel,
+                        channelsFirst = channelsFirst,
+                    )
+                }
+                if (logit.sigmoid() >= MASK_THRESHOLD) {
+                    visiblePixelCount += 1
+                }
+                sampledPixelCount += 1
+            }
+        }
+
+        return if (sampledPixelCount == 0) 0f else {
+            visiblePixelCount.toFloat() / sampledPixelCount
+        }
+    }
+
+    private fun Array<Array<Array<FloatArray>>>.valueAt(
+        y: Int,
+        x: Int,
+        channel: Int,
+        channelsFirst: Boolean,
+    ): Float {
+        return if (channelsFirst) {
+            this[0][channel][y][x]
+        } else {
+            this[0][y][x][channel]
+        }
+    }
+
+    private fun Float.sigmoid(): Float {
+        return (1f / (1f + exp(-this))).toFloat()
+    }
+
+    private fun RectF.areaRatio(): Float {
+        return width() * height() / (INPUT_SIZE_FLOAT * INPUT_SIZE_FLOAT)
     }
 
     private fun RectF.iou(other: RectF): Float {
@@ -266,16 +408,20 @@ class TfliteFoodDetector(
         val classId: Int,
         val score: Float,
         val box: RectF,
+        val maskCoefficients: FloatArray,
     )
 
     private enum class IngredientClass(
         val displayName: String,
+        val confidenceThreshold: Float,
+        val minBoxAreaRatio: Float,
+        val minMaskAreaRatio: Float,
     ) {
-        Meat("\uc721\ub958"),
-        Chicken("\ub2ed\uace0\uae30"),
-        Seafood("\uc5b4\ud328\ub958"),
-        Egg("\uacc4\ub780"),
-        Dairy("\uc720\uc81c\ud488"),
+        Meat("\uc721\ub958", confidenceThreshold = 0.30f, minBoxAreaRatio = 0.004f, minMaskAreaRatio = 0.08f),
+        Chicken("\ub2ed\uace0\uae30", confidenceThreshold = 0.25f, minBoxAreaRatio = 0.003f, minMaskAreaRatio = 0.07f),
+        Seafood("\uc5b4\ud328\ub958", confidenceThreshold = 0.30f, minBoxAreaRatio = 0.003f, minMaskAreaRatio = 0.07f),
+        Egg("\uacc4\ub780", confidenceThreshold = 0.35f, minBoxAreaRatio = 0.002f, minMaskAreaRatio = 0.06f),
+        Dairy("\uc720\uc81c\ud488", confidenceThreshold = 0.35f, minBoxAreaRatio = 0.003f, minMaskAreaRatio = 0.07f),
     }
 
     private companion object {
@@ -291,16 +437,20 @@ class TfliteFoodDetector(
         const val PIXEL_MAX_VALUE = 255f
         val LETTERBOX_COLOR = Color.rgb(114, 114, 114)
         const val DETECTION_OUTPUT_RANK = 3
+        const val MASK_PROTOTYPE_OUTPUT_RANK = 4
         const val MIN_DETECTION_CHANNEL_COUNT = 9
         const val MAX_DETECTION_CHANNEL_COUNT = 128
+        const val MASK_COEFFICIENT_COUNT = 32
         const val BOX_CHANNEL_COUNT = 4
         const val X_CHANNEL = 0
         const val Y_CHANNEL = 1
         const val WIDTH_CHANNEL = 2
         const val HEIGHT_CHANNEL = 3
-        const val CONFIDENCE_THRESHOLD = 0.25f
         const val IOU_THRESHOLD = 0.45f
         const val MIN_BOX_SIZE = 4f
+        const val MAX_DETECTIONS_PER_CLASS = 3
+        const val MASK_THRESHOLD = 0.50f
+        const val MASK_SAMPLE_STEP = 2
         const val NORMALIZED_COORDINATE_MAX = 1.5f
         const val NOT_FOUND = -1
     }
