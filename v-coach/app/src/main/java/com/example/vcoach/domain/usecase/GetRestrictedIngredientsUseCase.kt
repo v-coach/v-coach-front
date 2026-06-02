@@ -7,26 +7,33 @@ class GetRestrictedIngredientsUseCase {
 }
 
 object RestrictedIngredientSet {
-    val ingredientOrder = listOf(
-        "\uacc4\ub780",
-        "\uc720\uc81c\ud488",
-        "\uc5b4\ud328\ub958",
-        "\ub2ed\uace0\uae30",
-        "\uc721\ub958",
-    )
-
     val userTypes = listOf("A", "B", "C", "D", "E")
 
-    fun getRestrictedIngredients(userType: String): List<String> {
-        val count = when (userType) {
-            "A" -> 1
-            "B" -> 2
-            "C" -> 3
-            "D" -> 4
-            "E" -> 5
-            else -> 1
+    fun getUserTypeName(userType: String): String {
+        return when (userType) {
+            "A" -> "\ud3f4\ub85c"
+            "B" -> "\ud398\uc2a4\ucf54"
+            "C" -> "\ub77d\ud1a0-\uc624\ubcf4"
+            "D" -> "\ub77d\ud1a0"
+            "E" -> "\ube44\uac74"
+            else -> userType
         }
-
-        return ingredientOrder.take(count)
     }
+
+    fun getRestrictedIngredients(userType: String): List<String> {
+        return when (userType) {
+            "A" -> listOf(MEAT)
+            "B" -> listOf(CHICKEN, MEAT)
+            "C" -> listOf(SEAFOOD, CHICKEN, MEAT)
+            "D" -> listOf(EGG, SEAFOOD, CHICKEN, MEAT)
+            "E" -> listOf(DAIRY, EGG, SEAFOOD, CHICKEN, MEAT)
+            else -> listOf(MEAT)
+        }
+    }
+
+    private const val DAIRY = "\uc720\uc81c\ud488"
+    private const val EGG = "\uacc4\ub780"
+    private const val SEAFOOD = "\uc5b4\ud328\ub958"
+    private const val CHICKEN = "\ub2ed\uace0\uae30"
+    private const val MEAT = "\uc721\ub958"
 }

@@ -84,7 +84,7 @@ fun SettingsScreen(
             ) {
                 USER_TYPES.forEach { userType ->
                     VCoachOptionCard(
-                        title = "${userType} 단계",
+                        title = "${RestrictedIngredientSet.getUserTypeName(userType)} 단계",
                         selected = selectedUserType == userType,
                         onClick = {
                             selectedUserType = userType
