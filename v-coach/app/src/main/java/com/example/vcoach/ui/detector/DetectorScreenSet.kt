@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.example.vcoach.data.preferences.UserPreferences
 import com.example.vcoach.domain.usecase.CheckRestrictedIngredientUseCase
 import com.example.vcoach.domain.usecase.GetRestrictedIngredientsUseCase
+import com.example.vcoach.domain.usecase.RestrictedIngredientSet
 import com.example.vcoach.ui.detector.components.IngredientAnalysisContent
 import com.example.vcoach.ui.detector.components.LoadingContent
 import com.example.vcoach.ui.detector.components.NutritionAnalysisContent
@@ -48,6 +49,9 @@ fun DetectorScreenSet(
 
     val userPreferences = UserPreferences(LocalContext.current)
     val userType = userPreferences.getUserType()
+    val userTypeName = remember(userType) {
+        RestrictedIngredientSet.getUserTypeName(userType)
+    }
     val checkRestrictedIngredientUseCase = remember { CheckRestrictedIngredientUseCase() }
     val getRestrictedIngredientsUseCase = remember { GetRestrictedIngredientsUseCase() }
     val restrictedIngredients = remember(userType) {
@@ -73,7 +77,7 @@ fun DetectorScreenSet(
             emissionItems = emissionItems,
         )
         1 -> RestrictedIngredientContent(
-            userType = userType,
+            userType = userTypeName,
             hasRestrictedIngredient = hasRestrictedIngredient,
             restrictedIngredientItems = restrictedDetectedIngredientItems,
             setListItems = setListItems,
