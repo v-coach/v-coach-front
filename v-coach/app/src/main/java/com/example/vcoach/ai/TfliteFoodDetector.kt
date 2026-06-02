@@ -322,7 +322,8 @@ class TfliteFoodDetector(
                 maskPrototype = maskPrototype,
                 maskPrototypeShape = maskPrototypeShape,
             )
-            val keep = maskAreaRatio >= ingredient.minMaskAreaRatio
+            val keep = detection.score >= ingredient.strongConfidenceThreshold ||
+                maskAreaRatio >= ingredient.minMaskAreaRatio
             if (!keep) {
                 Log.d(
                     TAG,
@@ -414,14 +415,15 @@ class TfliteFoodDetector(
     private enum class IngredientClass(
         val displayName: String,
         val confidenceThreshold: Float,
+        val strongConfidenceThreshold: Float,
         val minBoxAreaRatio: Float,
         val minMaskAreaRatio: Float,
     ) {
-        Meat("\uc721\ub958", confidenceThreshold = 0.30f, minBoxAreaRatio = 0.004f, minMaskAreaRatio = 0.08f),
-        Chicken("\ub2ed\uace0\uae30", confidenceThreshold = 0.25f, minBoxAreaRatio = 0.003f, minMaskAreaRatio = 0.07f),
-        Seafood("\uc5b4\ud328\ub958", confidenceThreshold = 0.30f, minBoxAreaRatio = 0.003f, minMaskAreaRatio = 0.07f),
-        Egg("\uacc4\ub780", confidenceThreshold = 0.35f, minBoxAreaRatio = 0.002f, minMaskAreaRatio = 0.06f),
-        Dairy("\uc720\uc81c\ud488", confidenceThreshold = 0.35f, minBoxAreaRatio = 0.003f, minMaskAreaRatio = 0.07f),
+        Meat("\uc721\ub958", confidenceThreshold = 0.22f, strongConfidenceThreshold = 0.40f, minBoxAreaRatio = 0.0015f, minMaskAreaRatio = 0.04f),
+        Chicken("\ub2ed\uace0\uae30", confidenceThreshold = 0.16f, strongConfidenceThreshold = 0.35f, minBoxAreaRatio = 0.0010f, minMaskAreaRatio = 0.035f),
+        Seafood("\uc5b4\ud328\ub958", confidenceThreshold = 0.22f, strongConfidenceThreshold = 0.40f, minBoxAreaRatio = 0.0010f, minMaskAreaRatio = 0.035f),
+        Egg("\uacc4\ub780", confidenceThreshold = 0.16f, strongConfidenceThreshold = 0.35f, minBoxAreaRatio = 0.0008f, minMaskAreaRatio = 0.03f),
+        Dairy("\uc720\uc81c\ud488", confidenceThreshold = 0.20f, strongConfidenceThreshold = 0.38f, minBoxAreaRatio = 0.0010f, minMaskAreaRatio = 0.035f),
     }
 
     private companion object {
@@ -447,7 +449,7 @@ class TfliteFoodDetector(
         const val WIDTH_CHANNEL = 2
         const val HEIGHT_CHANNEL = 3
         const val IOU_THRESHOLD = 0.45f
-        const val MIN_BOX_SIZE = 4f
+        const val MIN_BOX_SIZE = 3f
         const val MAX_DETECTIONS_PER_CLASS = 3
         const val MASK_THRESHOLD = 0.50f
         const val MASK_SAMPLE_STEP = 2
